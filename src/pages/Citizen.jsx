@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ShieldCheck,
   TriangleAlert,
@@ -9,14 +9,51 @@ import {
 } from "lucide-react";
 
 import FamilyDetailsForm from "../components/citizen/FamilyDetailsForm";
-import { activeDisaster } from "../data/demoData";
+import ShelterRecommendation from "../components/citizen/ShelterRecommendation";
+import ShelterSearchState from "../components/citizen/ShelterSearchState";
+import { activeDisaster, demoUserLocation } from "../data/demoData";
+import { shelters } from "../data/shelters";
+import { findBestShelter } from "../lib/shelterAllocation";
 
 export default function Citizen() {
   const [step, setStep] = useState("alert");
   const [familyDetails, setFamilyDetails] = useState(null);
+  const [allocationResult, setAllocationResult] = useState(null);
+  const searchTimeoutRef = useRef(null);
 
   const hasActiveEmergency =
     activeDisaster && activeDisaster.status === "ACTIVE";
+
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleFamilySubmit = (details) => {
+    setFamilyDetails(details);
+    setAllocationResult(null);
+    setStep("searching");
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      const result = findBestShelter({
+        shelters,
+        familyDetails: details,
+        disasterType: activeDisaster.type,
+        userLocation: demoUserLocation,
+      });
+
+      setAllocationResult(result);
+      setStep("result");
+      searchTimeoutRef.current = null;
+    }, 900);
+  };
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-6 sm:px-6">
@@ -199,11 +236,21 @@ export default function Citizen() {
 
         {hasActiveEmergency && step === "family" && (
           <FamilyDetailsForm
+            initialDetails={familyDetails}
             onBack={() => setStep("alert")}
-            onSubmit={(details) => {
-              setFamilyDetails(details);
-              console.log("Family details:", details);
-            }}
+            onSubmit={handleFamilySubmit}
+          />
+        )}
+
+        {hasActiveEmergency && step === "searching" && (
+          <ShelterSearchState />
+        )}
+
+        {hasActiveEmergency && step === "result" && familyDetails && (
+          <ShelterRecommendation
+            shelter={allocationResult?.recommendedShelter ?? null}
+            familyDetails={familyDetails}
+            onBack={() => setStep("family")}
           />
         )}
 

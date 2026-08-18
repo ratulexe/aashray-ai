@@ -67,11 +67,13 @@ function PersonCounter({ label, description, icon: Icon, value, onDecrease, onIn
   );
 }
 
-export default function FamilyDetailsForm({ onBack, onSubmit }) {
-  const [adults, setAdults] = useState(1);
-  const [children, setChildren] = useState(0);
-  const [elderly, setElderly] = useState(0);
-  const [mobilityAssistance, setMobilityAssistance] = useState(false);
+export default function FamilyDetailsForm({ initialDetails, onBack, onSubmit }) {
+  const [adults, setAdults] = useState(initialDetails?.adults ?? 1);
+  const [children, setChildren] = useState(initialDetails?.children ?? 0);
+  const [elderly, setElderly] = useState(initialDetails?.elderly ?? 0);
+  const [mobilityAssistance, setMobilityAssistance] = useState(
+    initialDetails?.mobilityAssistance ?? false,
+  );
 
   const totalPeople = adults + children + elderly;
 

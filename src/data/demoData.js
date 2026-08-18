@@ -11,3 +11,8 @@ export const activeDisaster = {
     "Your current location is inside the affected evacuation zone. Move to a designated safe shelter as soon as possible.",
   status: "ACTIVE",
 };
+
+export const demoUserLocation = {
+  latitude: 22.1855,
+  longitude: 88.1844,
+};
