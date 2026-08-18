@@ -1,143 +1,216 @@
+import { useState } from "react";
 import {
-  ArrowLeft,
-  BedDouble,
-  Bell,
-  CheckCircle2,
-  HeartPulse,
+  ShieldCheck,
+  TriangleAlert,
   MapPin,
-  Phone,
-  Route,
-} from 'lucide-react'
-import { Link } from 'react-router-dom'
+  Clock3,
+  Navigation,
+  Radio,
+} from "lucide-react";
 
-const shelters = [
-  {
-    name: 'Central Relief Shelter',
-    distance: '1.4 km',
-    beds: '18 beds',
-    fit: 'Families and medical support',
-  },
-  {
-    name: 'Nagar Community Hall',
-    distance: '2.1 km',
-    beds: '31 beds',
-    fit: 'Women, children, and meals',
-  },
-  {
-    name: 'Transit Night Center',
-    distance: '3.7 km',
-    beds: '12 beds',
-    fit: 'Short stay and document help',
-  },
-]
+import FamilyDetailsForm from "../components/citizen/FamilyDetailsForm";
+import { activeDisaster } from "../data/demoData";
 
-function Citizen() {
+export default function Citizen() {
+  const [step, setStep] = useState("alert");
+  const [familyDetails, setFamilyDetails] = useState(null);
+
+  const hasActiveEmergency =
+    activeDisaster && activeDisaster.status === "ACTIVE";
+
   return (
-    <main className="page role-page citizen-theme">
-      <RoleNav current="Citizen" />
+    <main className="min-h-screen bg-slate-50 px-4 py-6 sm:px-6">
+      <div className="mx-auto max-w-2xl">
 
-      <section className="role-hero">
-        <div>
-          <p className="eyebrow">Citizen page</p>
-          <h1>Find safe shelter fast</h1>
-          <p>
-            Search nearby verified shelters, request placement support, and
-            keep trusted responders updated with your status.
-          </p>
-        </div>
-        <div className="status-card urgent">
-          <Bell size={22} aria-hidden="true" />
-          <span>Current request</span>
-          <strong>Help needed near Sector 7</strong>
-          <small>Priority matched to 3 shelters</small>
-        </div>
-      </section>
-
-      <section className="workspace-grid">
-        <div className="tool-panel wide">
-          <div className="section-heading">
-            <h2>Nearby options</h2>
-            <span>Live availability</span>
+        {/* Header */}
+        <header className="mb-8">
+          <div className="flex items-center gap-3"><div>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+                Aashray AI
+              </h1>
+              <p className="text-sm text-slate-500">
+                Disaster Evacuation & Shelter Coordination
+              </p>
+            </div>
           </div>
-          <div className="shelter-list">
-            {shelters.map((shelter) => (
-              <article className="shelter-row" key={shelter.name}>
-                <span className="row-icon">
-                  <BedDouble size={20} aria-hidden="true" />
-                </span>
+        </header>
+
+        {/* NORMAL STATE */}
+        {!hasActiveEmergency && (
+          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+              <ShieldCheck size={30} />
+            </div>
+
+            <div className="mt-6">
+              <p className="text-sm font-medium text-slate-500">
+                Your Safety Status
+              </p>
+
+              <h2 className="mt-1 text-3xl font-bold text-emerald-600">
+                Safe
+              </h2>
+
+              <p className="mt-3 leading-7 text-slate-600">
+                There are currently no active emergency alerts affecting your
+                location.
+              </p>
+            </div>
+
+            <div className="mt-8 rounded-2xl bg-slate-50 p-5">
+              <div className="flex items-start gap-3">
+                <MapPin
+                  size={21}
+                  className="mt-0.5 shrink-0 text-slate-500"
+                />
+
                 <div>
-                  <h3>{shelter.name}</h3>
-                  <p>{shelter.fit}</p>
+                  <p className="text-sm text-slate-500">
+                    Current Location
+                  </p>
+
+                  <p className="mt-1 font-semibold text-slate-900">
+                    Diamond Harbour, West Bengal
+                  </p>
                 </div>
-                <div className="row-meta">
-                  <strong>{shelter.beds}</strong>
-                  <span>{shelter.distance}</span>
+              </div>
+            </div>
+
+            <div className="mt-5 flex items-start gap-3 rounded-2xl border border-slate-200 p-5">
+              <Radio
+                size={20}
+                className="mt-0.5 shrink-0 text-teal-600"
+              />
+
+              <div>
+                <p className="font-medium text-slate-900">
+                  Emergency monitoring active
+                </p>
+
+                <p className="mt-1 text-sm leading-6 text-slate-500">
+                  Aashray AI is monitoring active emergency information for
+                  your area.
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* EMERGENCY STATE */}
+        {hasActiveEmergency && step === "alert" && (
+          <section className="overflow-hidden rounded-3xl border border-red-200 bg-white shadow-sm">
+
+            {/* Alert Header */}
+            <div className="bg-red-50 p-6 sm:p-8">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-100 text-red-600">
+                <TriangleAlert size={30} />
+              </div>
+
+              <p className="mt-6 text-sm font-semibold uppercase tracking-wider text-red-600">
+                Emergency Alert
+              </p>
+
+              <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+                {activeDisaster.title}
+              </h2>
+
+              <p className="mt-3 max-w-xl leading-7 text-slate-700">
+                {activeDisaster.message}
+              </p>
+            </div>
+
+            {/* Disaster Details */}
+            <div className="p-6 sm:p-8">
+              <div className="grid gap-4 sm:grid-cols-2">
+
+                {/* Risk */}
+                <div className="rounded-2xl border border-slate-200 p-5">
+                  <div className="flex items-center gap-3">
+                    <TriangleAlert
+                      size={20}
+                      className="text-red-600"
+                    />
+
+                    <p className="text-sm text-slate-500">
+                      Risk Level
+                    </p>
+                  </div>
+
+                  <p className="mt-3 text-lg font-bold text-red-600">
+                    {activeDisaster.severity}
+                  </p>
                 </div>
-              </article>
-            ))}
-          </div>
-        </div>
 
-        <div className="tool-panel">
-          <div className="section-heading">
-            <h2>Request support</h2>
-          </div>
-          <div className="quick-actions">
-            <button type="button">
-              <MapPin size={19} aria-hidden="true" />
-              Share location
-            </button>
-            <button type="button">
-              <HeartPulse size={19} aria-hidden="true" />
-              Add needs
-            </button>
-            <button type="button">
-              <Phone size={19} aria-hidden="true" />
-              Call helpline
-            </button>
-          </div>
-        </div>
+                {/* Area */}
+                <div className="rounded-2xl border border-slate-200 p-5">
+                  <div className="flex items-center gap-3">
+                    <MapPin
+                      size={20}
+                      className="text-slate-600"
+                    />
 
-        <div className="tool-panel">
-          <div className="section-heading">
-            <h2>Journey</h2>
-          </div>
-          <ol className="timeline">
-            <li>
-              <CheckCircle2 size={18} aria-hidden="true" />
-              Request received
-            </li>
-            <li>
-              <Route size={18} aria-hidden="true" />
-              Shelter match in progress
-            </li>
-            <li>
-              <BedDouble size={18} aria-hidden="true" />
-              Bed confirmation pending
-            </li>
-          </ol>
-        </div>
-      </section>
-    </main>
-  )
-}
+                    <p className="text-sm text-slate-500">
+                      Affected Area
+                    </p>
+                  </div>
 
-function RoleNav({ current }) {
-  return (
-    <nav className="topbar" aria-label="Role navigation">
-      <Link className="brand" to="/">
-        <span className="brand-mark">A</span>
-        <span>Aashray AI</span>
-      </Link>
-      <div className="nav-links">
-        <Link to="/">
-          <ArrowLeft size={16} aria-hidden="true" />
-          Home
-        </Link>
-        <span>{current}</span>
+                  <p className="mt-3 font-semibold text-slate-900">
+                    {activeDisaster.affectedArea}
+                  </p>
+                </div>
+
+                {/* Duration */}
+                <div className="rounded-2xl border border-slate-200 p-5 sm:col-span-2">
+                  <div className="flex items-center gap-3">
+                    <Clock3
+                      size={20}
+                      className="text-slate-600"
+                    />
+
+                    <p className="text-sm text-slate-500">
+                      Expected Duration
+                    </p>
+                  </div>
+
+                  <p className="mt-3 font-semibold text-slate-900">
+                    Approximately{" "}
+                    {activeDisaster.expectedDurationHours} hours
+                  </p>
+                </div>
+              </div>
+
+              {/* CTA */}
+              <button
+                type="button"
+                onClick={() => setStep("family")}
+                className="mt-7 flex w-full items-center justify-center gap-2 rounded-2xl bg-red-600 px-5 py-4 font-semibold text-white transition hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-red-100"
+              >
+                <Navigation size={20} />
+                Find Safe Shelter
+              </button>
+
+              <p className="mt-3 text-center text-xs leading-5 text-slate-500">
+                Aashray AI will evaluate shelters based on safety, available
+                capacity, current location, accessibility and route conditions.
+              </p>
+            </div>
+          </section>
+        )}
+
+        {hasActiveEmergency && step === "family" && (
+          <FamilyDetailsForm
+            onBack={() => setStep("alert")}
+            onSubmit={(details) => {
+              setFamilyDetails(details);
+              console.log("Family details:", details);
+            }}
+          />
+        )}
+
+        <p className="sr-only" aria-live="polite">
+          {familyDetails ? "Family details saved" : ""}
+        </p>
       </div>
-    </nav>
-  )
+    </main>
+  );
 }
-
-export default Citizen
