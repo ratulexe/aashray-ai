@@ -91,7 +91,12 @@ function NoSuitableShelter({ onBack }) {
   );
 }
 
-export default function ShelterRecommendation({ shelter, familyDetails, onBack }) {
+export default function ShelterRecommendation({
+  shelter,
+  familyDetails,
+  onBack,
+  onReserve,
+}) {
   if (!shelter) {
     return <NoSuitableShelter onBack={onBack} />;
   }
@@ -255,8 +260,8 @@ export default function ShelterRecommendation({ shelter, familyDetails, onBack }
 
         <button
           type="button"
-          disabled
-          className="flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-2xl bg-slate-200 px-5 py-4 font-semibold text-slate-500"
+          onClick={onReserve}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-teal-700 px-5 py-4 font-semibold text-white transition hover:bg-teal-800 focus:outline-none focus:ring-4 focus:ring-teal-100"
         >
           Reserve {familyDetails.totalPeople} Spaces
         </button>

@@ -9,16 +9,59 @@ import {
 } from "lucide-react";
 
 import FamilyDetailsForm from "../components/citizen/FamilyDetailsForm";
+import ReservationConfirmation from "../components/citizen/ReservationConfirmation";
 import ShelterRecommendation from "../components/citizen/ShelterRecommendation";
 import ShelterSearchState from "../components/citizen/ShelterSearchState";
 import { activeDisaster, demoUserLocation } from "../data/demoData";
 import { shelters } from "../data/shelters";
+import {
+  calculateReservationCapacity,
+  generateEvacuationCode,
+} from "../lib/reservation";
 import { findBestShelter } from "../lib/shelterAllocation";
+
+function ReservationErrorCard({ onFindAnother }) {
+  return (
+    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-700">
+        <TriangleAlert size={30} aria-hidden="true" />
+      </div>
+
+      <div className="mt-6">
+        <p className="text-sm font-semibold uppercase tracking-wider text-amber-700">
+          Reservation Issue
+        </p>
+
+        <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+          Reservation Could Not Be Completed
+        </h2>
+
+        <p className="mt-3 leading-7 text-slate-600">
+          The selected shelter no longer has enough capacity for your group.
+        </p>
+
+        <p className="mt-3 leading-7 text-slate-600">
+          Please search again for another safe shelter.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={onFindAnother}
+        className="mt-7 flex w-full items-center justify-center gap-2 rounded-2xl bg-teal-700 px-5 py-4 font-semibold text-white transition hover:bg-teal-800 focus:outline-none focus:ring-4 focus:ring-teal-100"
+      >
+        <Navigation size={20} aria-hidden="true" />
+        Find Another Shelter
+      </button>
+    </section>
+  );
+}
 
 export default function Citizen() {
   const [step, setStep] = useState("alert");
   const [familyDetails, setFamilyDetails] = useState(null);
   const [allocationResult, setAllocationResult] = useState(null);
+  const [reservation, setReservation] = useState(null);
   const searchTimeoutRef = useRef(null);
 
   const hasActiveEmergency =
@@ -35,6 +78,7 @@ export default function Citizen() {
   const handleFamilySubmit = (details) => {
     setFamilyDetails(details);
     setAllocationResult(null);
+    setReservation(null);
     setStep("searching");
 
     if (searchTimeoutRef.current) {
@@ -53,6 +97,45 @@ export default function Citizen() {
       setStep("result");
       searchTimeoutRef.current = null;
     }, 900);
+  };
+
+  const handleReserve = () => {
+    const recommendedShelter = allocationResult?.recommendedShelter;
+
+    if (!recommendedShelter || !familyDetails) {
+      setStep("reservationError");
+      return;
+    }
+
+    const capacityEffect = calculateReservationCapacity({
+      shelter: recommendedShelter,
+      peopleCount: familyDetails.totalPeople,
+    });
+
+    if (!capacityEffect.canReserve) {
+      setStep("reservationError");
+      return;
+    }
+
+    const createdAt = new Date();
+    const expiresAt = new Date(createdAt.getTime() + 60 * 60 * 1000);
+
+    setReservation({
+      id: generateEvacuationCode(),
+      shelterId: recommendedShelter.id,
+      shelterName: recommendedShelter.name,
+      shelterLocation: recommendedShelter.location,
+      peopleCount: familyDetails.totalPeople,
+      status: "RESERVED",
+      phone: "98XXXXXX12",
+      createdAt: createdAt.toISOString(),
+      expiresAt: expiresAt.toISOString(),
+      reservedBefore: capacityEffect.reservedBefore,
+      reservedAfter: capacityEffect.reservedAfter,
+      availableBefore: capacityEffect.availableBefore,
+      availableAfter: capacityEffect.availableAfter,
+    });
+    setStep("reserved");
   };
 
   return (
@@ -251,6 +334,29 @@ export default function Citizen() {
             shelter={allocationResult?.recommendedShelter ?? null}
             familyDetails={familyDetails}
             onBack={() => setStep("family")}
+            onReserve={handleReserve}
+          />
+        )}
+
+        {hasActiveEmergency &&
+          step === "reserved" &&
+          reservation &&
+          allocationResult?.recommendedShelter &&
+          familyDetails && (
+            <ReservationConfirmation
+              reservation={reservation}
+              shelter={allocationResult.recommendedShelter}
+              familyDetails={familyDetails}
+            />
+          )}
+
+        {hasActiveEmergency && step === "reservationError" && (
+          <ReservationErrorCard
+            onFindAnother={() => {
+              setReservation(null);
+              setAllocationResult(null);
+              setStep("family");
+            }}
           />
         )}
 
