@@ -1,145 +1,74 @@
-import {
-  ArrowLeft,
-  BedDouble,
-  ClipboardCheck,
-  PackageCheck,
-  Plus,
-  Utensils,
-  Users,
-  Warehouse,
-} from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import ArrivalConfirmation from '../components/shelter/ArrivalConfirmation.jsx'
+import IncomingReservations from '../components/shelter/IncomingReservations.jsx'
+import ReservationDetails from '../components/shelter/ReservationDetails.jsx'
+import ReservationLookup from '../components/shelter/ReservationLookup.jsx'
+import ShelterCapacityOverview from '../components/shelter/ShelterCapacityOverview.jsx'
+import ShelterHeader from '../components/shelter/ShelterHeader.jsx'
 
-const referrals = [
-  ['Family of four', 'ETA 18 min', 'Needs two lower beds'],
-  ['Senior citizen', 'ETA 31 min', 'Medical check on arrival'],
-  ['Two night-stay guests', 'ETA 44 min', 'Meal tokens requested'],
-]
+const shelter = {
+  id: 'S004',
+  name: 'BDO Relief Centre',
+  location: 'Diamond Harbour',
+  capacity: 600,
+  occupied: 270,
+  reserved: 66,
+}
 
-const supplies = [
-  ['Meals', '84 available'],
-  ['Blankets', '39 available'],
-  ['Hygiene kits', '27 available'],
+const reservations = [
+  {
+    code: 'ASH-5303',
+    people: 6,
+    status: 'RESERVED',
+    adults: 3,
+    children: 1,
+    elderly: 2,
+    mobilityAssistance: true,
+  },
+  {
+    code: 'ASH-4821',
+    people: 4,
+    status: 'RESERVED',
+    adults: 2,
+    children: 2,
+    elderly: 0,
+    mobilityAssistance: false,
+  },
 ]
 
 function Shelter() {
+  const [verifiedReservation, setVerifiedReservation] = useState(null)
+  const available = shelter.capacity - shelter.occupied - shelter.reserved
+
   return (
-    <main className="page role-page shelter-theme">
-      <RoleNav current="Shelter Operator" />
+    <main className="min-h-screen bg-slate-100 text-slate-900">
+      <ShelterHeader shelter={shelter} />
 
-      <section className="role-hero">
-        <div>
-          <p className="eyebrow">Shelter Operator page</p>
-          <h1>Run shelter intake with confidence</h1>
-          <p>
-            Keep beds, referrals, supplies, and arrival notes aligned with the
-            wider Aashray AI network.
-          </p>
-        </div>
-        <div className="status-card">
-          <BedDouble size={22} aria-hidden="true" />
-          <span>Available tonight</span>
-          <strong>26 open beds</strong>
-          <small>11 for families, 15 for individuals</small>
-        </div>
-      </section>
+      <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        <ShelterCapacityOverview shelter={shelter} available={available} />
 
-      <section className="stats-strip" aria-label="Shelter metrics">
-        <div>
-          <Users size={21} aria-hidden="true" />
-          <strong>74</strong>
-          <span>current guests</span>
-        </div>
-        <div>
-          <ClipboardCheck size={21} aria-hidden="true" />
-          <strong>9</strong>
-          <span>referrals inbound</span>
-        </div>
-        <div>
-          <Utensils size={21} aria-hidden="true" />
-          <strong>112</strong>
-          <span>meals prepared</span>
-        </div>
-      </section>
+        <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
+          <IncomingReservations reservations={reservations} />
 
-      <section className="workspace-grid">
-        <div className="tool-panel wide">
-          <div className="section-heading">
-            <h2>Incoming referrals</h2>
-            <span>Operator queue</span>
-          </div>
-          <div className="incident-list">
-            {referrals.map(([title, eta, detail]) => (
-              <article className="incident-row" key={title}>
-                <span className="row-icon">
-                  <ClipboardCheck size={20} aria-hidden="true" />
-                </span>
-                <div>
-                  <h3>{title}</h3>
-                  <p>{detail}</p>
-                </div>
-                <strong className="eta">{eta}</strong>
-              </article>
-            ))}
-          </div>
-        </div>
+          <div className="grid gap-6">
+            <ReservationLookup
+              shelterId={shelter.id}
+              onVerified={setVerifiedReservation}
+            />
 
-        <div className="tool-panel">
-          <div className="section-heading">
-            <h2>Supplies</h2>
-          </div>
-          <div className="capacity-list">
-            {supplies.map(([item, amount]) => (
-              <div className="capacity-row" key={item}>
-                <div>
-                  <strong>{item}</strong>
-                  <span>Inventory synced</span>
-                </div>
-                <span>{amount}</span>
+            {verifiedReservation && (
+              <div className="grid gap-6" aria-live="polite">
+                <ReservationDetails reservation={verifiedReservation} />
+                <ArrivalConfirmation
+                  key={verifiedReservation.code}
+                  reservation={verifiedReservation}
+                />
               </div>
-            ))}
+            )}
           </div>
         </div>
-
-        <div className="tool-panel">
-          <div className="section-heading">
-            <h2>Update desk</h2>
-          </div>
-          <div className="quick-actions">
-            <button type="button">
-              <Plus size={19} aria-hidden="true" />
-              Add beds
-            </button>
-            <button type="button">
-              <PackageCheck size={19} aria-hidden="true" />
-              Log supplies
-            </button>
-            <button type="button">
-              <Warehouse size={19} aria-hidden="true" />
-              Close intake
-            </button>
-          </div>
-        </div>
-      </section>
-    </main>
-  )
-}
-
-function RoleNav({ current }) {
-  return (
-    <nav className="topbar" aria-label="Role navigation">
-      <Link className="brand" to="/">
-        <span className="brand-mark">A</span>
-        <span>Aashray AI</span>
-      </Link>
-      <div className="nav-links">
-        <Link to="/">
-          <ArrowLeft size={16} aria-hidden="true" />
-          Home
-        </Link>
-        <span>{current}</span>
       </div>
-    </nav>
+    </main>
   )
 }
 
