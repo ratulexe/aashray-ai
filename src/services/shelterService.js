@@ -1,4 +1,4 @@
-import { collection, getDocs } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs } from "firebase/firestore";
 
 import { db } from "../lib/firebase";
 
@@ -28,15 +28,48 @@ function isUsableShelter(shelter) {
   );
 }
 
+function toShelter(document) {
+  return {
+    ...document.data(),
+    id: document.id,
+  };
+}
+
+export async function getShelterById(shelterId) {
+  if (typeof shelterId !== "string" || shelterId.trim() === "") {
+    throw new Error("A shelter id is required.");
+  }
+
+  try {
+    const snapshot = await getDoc(doc(db, "shelters", shelterId.trim()));
+
+    if (!snapshot.exists()) {
+      return null;
+    }
+
+    const shelter = toShelter(snapshot);
+
+    if (!isUsableShelter(shelter)) {
+      if (import.meta.env.DEV) {
+        console.warn("Malformed shelter document:", shelter.id, shelter);
+      }
+
+      throw new Error("Shelter data is incomplete or invalid.");
+    }
+
+    return shelter;
+  } catch (error) {
+    console.error(`Failed to load shelter ${shelterId}:`, error);
+    throw error;
+  }
+}
+
 export async function getShelters() {
   try {
     const snapshot = await getDocs(collection(db, "shelters"));
 
     return snapshot.docs
-      .map((document) => ({
-        ...document.data(),
-        id: document.id,
-      }))
+      .map(toShelter)
       .filter((shelter) => {
         const usable = isUsableShelter(shelter);
 
