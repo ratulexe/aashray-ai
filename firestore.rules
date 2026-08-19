@@ -1,0 +1,137 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function shelterPath(shelterId) {
+      return /databases/$(database)/documents/shelters/$(shelterId);
+    }
+
+    function isNonNegativeInt(value) {
+      return value is int && value >= 0;
+    }
+
+    function isPositiveInt(value) {
+      return value is int && value > 0;
+    }
+
+    function isNonNegativeNumber(value) {
+      return (value is int || value is float) && value >= 0;
+    }
+
+    function isValidReservationFamily(family, peopleCount) {
+      return family is map
+        && family.keys().hasOnly([
+          'adults',
+          'children',
+          'elderly',
+          'mobilityAssistance'
+        ])
+        && isNonNegativeInt(family.adults)
+        && isNonNegativeInt(family.children)
+        && isNonNegativeInt(family.elderly)
+        && family.mobilityAssistance is bool
+        && peopleCount == family.adults + family.children + family.elderly;
+    }
+
+    function isValidShelterReservedUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reserved'])
+        && isNonNegativeInt(resource.data.capacity)
+        && isNonNegativeInt(resource.data.occupied)
+        && isNonNegativeInt(resource.data.reserved)
+        && isNonNegativeInt(request.resource.data.reserved)
+        && request.resource.data.reserved > resource.data.reserved
+        && request.resource.data.reserved <= resource.data.capacity - resource.data.occupied;
+    }
+
+    function isValidReservationCreate(reservationId) {
+      return request.resource.data.keys().hasOnly([
+          'code',
+          'shelterId',
+          'shelterName',
+          'peopleCount',
+          'family',
+          'phone',
+          'status',
+          'distanceKm',
+          'etaMinutes',
+          'bufferMinutes',
+          'validityMinutes',
+          'createdAt',
+          'expiresAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'code',
+          'shelterId',
+          'shelterName',
+          'peopleCount',
+          'family',
+          'phone',
+          'status',
+          'distanceKm',
+          'etaMinutes',
+          'bufferMinutes',
+          'validityMinutes',
+          'createdAt',
+          'expiresAt'
+        ])
+        && reservationId == request.resource.data.code
+        && request.resource.data.code is string
+        && request.resource.data.shelterId is string
+        && request.resource.data.shelterName is string
+        && request.resource.data.phone is string
+        && request.resource.data.status == 'RESERVED'
+        && isPositiveInt(request.resource.data.peopleCount)
+        && isNonNegativeNumber(request.resource.data.distanceKm)
+        && isPositiveInt(request.resource.data.etaMinutes)
+        && request.resource.data.bufferMinutes == 60
+        && request.resource.data.validityMinutes
+          == request.resource.data.etaMinutes + request.resource.data.bufferMinutes
+        && isValidReservationFamily(
+          request.resource.data.family,
+          request.resource.data.peopleCount
+        )
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt > request.time
+        && exists(shelterPath(request.resource.data.shelterId))
+        && getAfter(shelterPath(request.resource.data.shelterId)).data.reserved
+          == get(shelterPath(request.resource.data.shelterId)).data.reserved
+            + request.resource.data.peopleCount;
+    }
+
+    match /disasters/{disasterId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /shelters/{shelterId} {
+      allow read: if true;
+
+      // Phase-1 prototype: unauthenticated clients may only increase
+      // `reserved` as part of a narrowly constrained reservation flow.
+      // Production must use Firebase Authentication, role-based authorization,
+      // App Check, and/or trusted backend logic.
+      allow update: if isValidShelterReservedUpdate();
+      allow create, delete: if false;
+    }
+
+    match /reservations/{reservationId} {
+      // Phase-1 prototype: reservation creation is narrowly constrained but
+      // still unauthenticated. Production must add role-based authorization.
+      allow get: if true;
+      allow list: if false;
+      allow create: if isValidReservationCreate(reservationId);
+      allow update, delete: if false;
+    }
+
+    match /roadIncidents/{incidentId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /evacuationRequests/{requestId} {
+      allow read, create: if true;
+      allow update, delete: if false;
+    }
+  }
+}
