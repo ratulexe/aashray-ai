@@ -43,6 +43,23 @@ service cloud.firestore {
         && request.resource.data.reserved <= resource.data.capacity - resource.data.occupied;
     }
 
+    function isValidShelterArrivalCapacityUpdate() {
+      let arrivalCount = resource.data.reserved - request.resource.data.reserved;
+
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'reserved',
+          'occupied'
+        ])
+        && isNonNegativeInt(resource.data.capacity)
+        && isNonNegativeInt(resource.data.occupied)
+        && isNonNegativeInt(resource.data.reserved)
+        && isNonNegativeInt(request.resource.data.occupied)
+        && isNonNegativeInt(request.resource.data.reserved)
+        && isPositiveInt(arrivalCount)
+        && request.resource.data.occupied == resource.data.occupied + arrivalCount
+        && request.resource.data.occupied <= resource.data.capacity;
+    }
+
     function isValidReservationCreate(reservationId) {
       return request.resource.data.keys().hasOnly([
           'code',
@@ -99,6 +116,32 @@ service cloud.firestore {
             + request.resource.data.peopleCount;
     }
 
+    function isValidReservationArrivalUpdate(reservationId) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'arrivedAt'
+        ])
+        && !resource.data.keys().hasAny(['arrivedAt'])
+        && reservationId == resource.data.code
+        && resource.data.status == 'RESERVED'
+        && request.resource.data.status == 'ARRIVED'
+        && request.resource.data.arrivedAt == request.time
+        && resource.data.shelterId is string
+        && resource.data.expiresAt is timestamp
+        && resource.data.expiresAt > request.time
+        && isPositiveInt(resource.data.peopleCount)
+        && exists(shelterPath(resource.data.shelterId))
+        && existsAfter(shelterPath(resource.data.shelterId))
+        && get(shelterPath(resource.data.shelterId)).data.reserved
+          >= resource.data.peopleCount
+        && getAfter(shelterPath(resource.data.shelterId)).data.reserved
+          == get(shelterPath(resource.data.shelterId)).data.reserved
+            - resource.data.peopleCount
+        && getAfter(shelterPath(resource.data.shelterId)).data.occupied
+          == get(shelterPath(resource.data.shelterId)).data.occupied
+            + resource.data.peopleCount;
+    }
+
     match /disasters/{disasterId} {
       allow read: if true;
       allow write: if false;
@@ -108,10 +151,12 @@ service cloud.firestore {
       allow read: if true;
 
       // Phase-1 prototype: unauthenticated clients may only increase
-      // `reserved` as part of a narrowly constrained reservation flow.
+      // `reserved` as part of a narrowly constrained reservation flow, or move
+      // reserved guests into occupied capacity as part of arrival confirmation.
       // Production must use Firebase Authentication, role-based authorization,
       // App Check, and/or trusted backend logic.
-      allow update: if isValidShelterReservedUpdate();
+      allow update: if isValidShelterReservedUpdate()
+        || isValidShelterArrivalCapacityUpdate();
       allow create, delete: if false;
     }
 
@@ -121,7 +166,8 @@ service cloud.firestore {
       allow get: if true;
       allow list: if false;
       allow create: if isValidReservationCreate(reservationId);
-      allow update, delete: if false;
+      allow update: if isValidReservationArrivalUpdate(reservationId);
+      allow delete: if false;
     }
 
     match /roadIncidents/{incidentId} {
