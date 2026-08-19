@@ -200,4 +200,3 @@ export default function FamilyDetailsForm({ initialDetails, onBack, onSubmit }) 
     </section>
   );
 }
-    
