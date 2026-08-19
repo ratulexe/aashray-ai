@@ -62,6 +62,8 @@ function Shelter() {
                 <ArrivalConfirmation
                   key={verifiedReservation.code}
                   reservation={verifiedReservation}
+                  shelterId={shelter.id}
+                  onConfirmed={setVerifiedReservation}
                 />
               </div>
             )}

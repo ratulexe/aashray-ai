@@ -1,4 +1,9 @@
-import { doc, getDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  runTransaction,
+  serverTimestamp,
+} from "firebase/firestore";
 
 import { db } from "../lib/firebase";
 
@@ -6,6 +11,7 @@ const reservationCodePattern = /^ASH-\d{4}$/;
 
 export const RESERVATION_VERIFICATION_STATUS = {
   VALID: "VALID",
+  ARRIVED: "ARRIVED",
   INVALID_CODE: "INVALID_CODE",
   NOT_FOUND: "NOT_FOUND",
   EXPIRED: "EXPIRED",
@@ -14,6 +20,8 @@ export const RESERVATION_VERIFICATION_STATUS = {
   WRONG_SHELTER: "WRONG_SHELTER",
   INVALID_STATUS: "INVALID_STATUS",
   INVALID_RESERVATION: "INVALID_RESERVATION",
+  SHELTER_NOT_FOUND: "SHELTER_NOT_FOUND",
+  CAPACITY_MISMATCH: "CAPACITY_MISMATCH",
   SYSTEM_ERROR: "SYSTEM_ERROR",
 };
 
@@ -104,6 +112,15 @@ function invalidReservationResult(normalizedCode, reservation = null) {
     status: RESERVATION_VERIFICATION_STATUS.INVALID_RESERVATION,
     code: normalizedCode,
     reservation,
+  };
+}
+
+function result(status, normalizedCode, reservation = undefined) {
+  return {
+    ok: false,
+    status,
+    code: normalizedCode,
+    ...(reservation ? { reservation } : {}),
   };
 }
 
@@ -200,5 +217,130 @@ export async function verifyReservationCode(code, { expectedShelterId } = {}) {
       status: RESERVATION_VERIFICATION_STATUS.SYSTEM_ERROR,
       code: normalizedCode,
     };
+  }
+}
+
+export async function confirmReservationArrival(
+  code,
+  { expectedShelterId } = {},
+) {
+  const normalizedCode = normalizeReservationCode(code);
+
+  if (!reservationCodePattern.test(normalizedCode)) {
+    return result(RESERVATION_VERIFICATION_STATUS.INVALID_CODE, normalizedCode);
+  }
+
+  try {
+    const reservationRef = doc(db, "reservations", normalizedCode);
+
+    return await runTransaction(db, async (transaction) => {
+      const reservationSnapshot = await transaction.get(reservationRef);
+
+      if (!reservationSnapshot.exists()) {
+        return result(RESERVATION_VERIFICATION_STATUS.NOT_FOUND, normalizedCode);
+      }
+
+      const reservation = {
+        id: reservationSnapshot.id,
+        ...reservationSnapshot.data(),
+      };
+
+      if (!isValidReservationShape(reservation, normalizedCode)) {
+        return invalidReservationResult(normalizedCode, reservation);
+      }
+
+      const mappedStatus = reservationStatusMap[reservation.status];
+
+      if (!mappedStatus) {
+        return result(
+          RESERVATION_VERIFICATION_STATUS.INVALID_STATUS,
+          normalizedCode,
+          reservation,
+        );
+      }
+
+      if (mappedStatus !== RESERVATION_VERIFICATION_STATUS.VALID) {
+        return result(mappedStatus, normalizedCode, reservation);
+      }
+
+      const expiresAtMs = timestampToMillis(reservation.expiresAt);
+
+      if (expiresAtMs - Date.now() <= 0) {
+        return result(
+          RESERVATION_VERIFICATION_STATUS.EXPIRED,
+          normalizedCode,
+          reservation,
+        );
+      }
+
+      if (expectedShelterId && reservation.shelterId !== expectedShelterId) {
+        return result(
+          RESERVATION_VERIFICATION_STATUS.WRONG_SHELTER,
+          normalizedCode,
+          reservation,
+        );
+      }
+
+      const peopleCount = reservation.peopleCount;
+
+      if (!isPositiveInteger(peopleCount)) {
+        return invalidReservationResult(normalizedCode, reservation);
+      }
+
+      const shelterRef = doc(db, "shelters", reservation.shelterId);
+      const shelterSnapshot = await transaction.get(shelterRef);
+
+      if (!shelterSnapshot.exists()) {
+        return result(
+          RESERVATION_VERIFICATION_STATUS.SHELTER_NOT_FOUND,
+          normalizedCode,
+          reservation,
+        );
+      }
+
+      const shelter = {
+        id: shelterSnapshot.id,
+        ...shelterSnapshot.data(),
+      };
+
+      if (
+        !isNonNegativeInteger(shelter.reserved) ||
+        !isNonNegativeInteger(shelter.occupied) ||
+        shelter.reserved < peopleCount
+      ) {
+        return result(
+          RESERVATION_VERIFICATION_STATUS.CAPACITY_MISMATCH,
+          normalizedCode,
+          reservation,
+        );
+      }
+
+      transaction.update(reservationRef, {
+        status: "ARRIVED",
+        arrivedAt: serverTimestamp(),
+      });
+      transaction.update(shelterRef, {
+        reserved: shelter.reserved - peopleCount,
+        occupied: shelter.occupied + peopleCount,
+      });
+
+      return {
+        ok: true,
+        status: RESERVATION_VERIFICATION_STATUS.ARRIVED,
+        code: normalizedCode,
+        reservation: {
+          ...reservation,
+          status: "ARRIVED",
+        },
+      };
+    });
+  } catch (error) {
+    console.error("Failed to confirm reservation arrival:", {
+      code: error?.code ?? "unknown",
+      message: error?.message ?? String(error),
+      error,
+    });
+
+    return result(RESERVATION_VERIFICATION_STATUS.SYSTEM_ERROR, normalizedCode);
   }
 }
