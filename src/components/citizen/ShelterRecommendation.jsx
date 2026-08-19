@@ -6,6 +6,7 @@ import {
   Droplets,
   HeartPulse,
   House,
+  LoaderCircle,
   MapPin,
   Route,
   ShieldCheck,
@@ -96,6 +97,7 @@ export default function ShelterRecommendation({
   familyDetails,
   onBack,
   onReserve,
+  isReserving = false,
 }) {
   if (!shelter) {
     return <NoSuitableShelter onBack={onBack} />;
@@ -261,9 +263,15 @@ export default function ShelterRecommendation({
         <button
           type="button"
           onClick={onReserve}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-teal-700 px-5 py-4 font-semibold text-white transition hover:bg-teal-800 focus:outline-none focus:ring-4 focus:ring-teal-100"
+          disabled={isReserving}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-teal-700 px-5 py-4 font-semibold text-white transition hover:bg-teal-800 focus:outline-none focus:ring-4 focus:ring-teal-100 disabled:cursor-not-allowed disabled:bg-slate-300"
         >
-          Reserve {familyDetails.totalPeople} Spaces
+          {isReserving && (
+            <LoaderCircle size={20} className="animate-spin" aria-hidden="true" />
+          )}
+          {isReserving
+            ? "Reserving Spaces..."
+            : `Reserve ${familyDetails.totalPeople} Spaces`}
         </button>
       </div>
     </section>

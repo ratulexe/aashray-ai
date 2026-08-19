@@ -10,11 +10,33 @@ import {
 
 import MockSmsNotification from "./MockSmsNotification";
 
+function formatReservationTime(value) {
+  if (!value) {
+    return "Not available";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Not available";
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
 export default function ReservationConfirmation({
   reservation,
   shelter,
   familyDetails,
 }) {
+  const distanceKm = reservation.distanceKm ?? shelter.distanceKm;
+  const distanceLabel = Number.isFinite(distanceKm)
+    ? `${distanceKm.toFixed(1)} km`
+    : "Not available";
+
   return (
     <div className="space-y-6">
       <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
@@ -73,7 +95,7 @@ export default function ReservationConfirmation({
                 <p className="text-sm text-slate-500">Distance</p>
               </div>
               <p className="mt-3 text-xl font-bold text-slate-900">
-                {shelter.distanceKm.toFixed(1)} km
+                {distanceLabel}
               </p>
             </div>
 
@@ -88,11 +110,44 @@ export default function ReservationConfirmation({
             <div className="rounded-2xl border border-slate-200 p-5">
               <div className="flex items-center gap-3">
                 <Clock3 size={20} className="text-teal-700" aria-hidden="true" />
-                <p className="text-sm text-slate-500">Validity</p>
+                <p className="text-sm text-slate-500">Estimated Travel Time</p>
               </div>
               <p className="mt-3 font-semibold text-slate-900">
-                Approximately 60 minutes
+                {reservation.etaMinutes} min
               </p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 p-5">
+            <h3 className="font-bold text-slate-900">Reservation Validity</h3>
+
+            <div className="mt-4 grid gap-3">
+              <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-3">
+                <span className="text-sm font-medium text-slate-600">
+                  Arrival safety buffer
+                </span>
+                <span className="font-bold tabular-nums text-slate-900">
+                  {reservation.bufferMinutes} min
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-3">
+                <span className="text-sm font-medium text-slate-600">
+                  Reservation held for
+                </span>
+                <span className="font-bold tabular-nums text-slate-900">
+                  {reservation.validityMinutes} min
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm font-medium text-slate-600">
+                  Reservation valid until
+                </span>
+                <span className="font-bold tabular-nums text-slate-900">
+                  {formatReservationTime(reservation.expiresAt)}
+                </span>
+              </div>
             </div>
           </div>
 
