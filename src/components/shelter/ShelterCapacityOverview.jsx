@@ -29,9 +29,13 @@ const capacityItems = [
 
 function ShelterCapacityOverview({ shelter, available }) {
   const values = { ...shelter, available }
-  const occupiedPercent = (shelter.occupied / shelter.capacity) * 100
-  const reservedPercent = (shelter.reserved / shelter.capacity) * 100
-  const availablePercent = (available / shelter.capacity) * 100
+  const percentageOfCapacity = (value) =>
+    shelter.capacity > 0
+      ? Math.min(Math.max((value / shelter.capacity) * 100, 0), 100)
+      : 0
+  const occupiedPercent = percentageOfCapacity(shelter.occupied)
+  const reservedPercent = percentageOfCapacity(shelter.reserved)
+  const availablePercent = percentageOfCapacity(available)
 
   return (
     <section

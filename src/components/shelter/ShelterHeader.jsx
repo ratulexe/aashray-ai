@@ -2,6 +2,8 @@ import { ArrowLeft, Building2, MapPin, ShieldCheck } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 function ShelterHeader({ shelter }) {
+  const intakeActive = shelter.status === 'AVAILABLE'
+
   return (
     <header className="border-b border-teal-900/20 bg-teal-950 text-white">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -38,9 +40,20 @@ function ShelterHeader({ shelter }) {
               {shelter.location}
             </p>
           </div>
-          <div className="flex w-fit items-center gap-2 rounded-lg bg-emerald-400/10 px-3 py-2 text-sm font-semibold text-emerald-200 ring-1 ring-inset ring-emerald-300/20">
-            <span className="size-2 rounded-full bg-emerald-300" aria-hidden="true" />
-            Intake active
+          <div
+            className={`flex w-fit items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold ring-1 ring-inset ${
+              intakeActive
+                ? 'bg-emerald-400/10 text-emerald-200 ring-emerald-300/20'
+                : 'bg-amber-400/10 text-amber-100 ring-amber-300/20'
+            }`}
+          >
+            <span
+              className={`size-2 rounded-full ${
+                intakeActive ? 'bg-emerald-300' : 'bg-amber-300'
+              }`}
+              aria-hidden="true"
+            />
+            {intakeActive ? 'Intake active' : 'Intake unavailable'}
           </div>
         </div>
       </div>
