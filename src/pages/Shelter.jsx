@@ -1,5 +1,6 @@
 import { LoaderCircle, RefreshCw, TriangleAlert } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { AppHeader } from '../components/AppHeader.jsx'
 import ArrivalConfirmation from '../components/shelter/ArrivalConfirmation.jsx'
 import IncomingReservations from '../components/shelter/IncomingReservations.jsx'
 import ReservationDetails from '../components/shelter/ReservationDetails.jsx'
@@ -14,17 +15,15 @@ function DashboardLoadState({ status, onRetry }) {
   const isLoading = status === 'loading'
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-12 text-slate-900">
-      <section
-        className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm sm:p-8"
-        aria-live="polite"
-        aria-busy={isLoading}
-      >
+    <main>
+      <AppHeader />
+      <div className="page-container citizen-page">
+      <section className="surface-card operator-card empty-state" aria-live="polite" aria-busy={isLoading}>
         <span
           className={`mx-auto flex size-12 items-center justify-center rounded-xl ${
             isLoading
-              ? 'bg-teal-50 text-teal-700'
-              : 'bg-red-50 text-red-700'
+              ? 'bg-teal-300/10 text-teal-200 ring-1 ring-inset ring-teal-200/15'
+              : 'bg-red-300/10 text-red-200 ring-1 ring-inset ring-red-200/15'
           }`}
         >
           {isLoading ? (
@@ -33,17 +32,17 @@ function DashboardLoadState({ status, onRetry }) {
             <TriangleAlert size={24} aria-hidden="true" />
           )}
         </span>
-        <h1 className="mt-4 text-xl font-bold text-slate-950">
+        <h1 className="mt-4 text-xl font-bold">
           {isLoading ? 'Loading shelter dashboard' : 'Shelter dashboard unavailable'}
         </h1>
-        <p className="mb-0 mt-2 text-sm leading-6 text-slate-600">
+        <p className="mb-0 mt-2 text-sm leading-6 text-slate-500">
           {isLoading
             ? `Loading live capacity for shelter ${operatorShelterId}.`
             : 'We could not load this shelter from Firestore. Check the connection and try again.'}
         </p>
         {!isLoading && (
           <button
-            className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-teal-800 px-4 text-sm font-bold text-white transition-colors hover:bg-teal-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800"
+            className="button-primary mt-5"
             type="button"
             onClick={onRetry}
           >
@@ -52,6 +51,7 @@ function DashboardLoadState({ status, onRetry }) {
           </button>
         )}
       </section>
+      </div>
     </main>
   )
 }
@@ -108,26 +108,22 @@ function Shelter() {
   const available = shelter.capacity - shelter.occupied - shelter.reserved
 
   return (
-    <main className="min-h-screen bg-slate-100 text-slate-900">
+    <main className="operator-page">
+      <AppHeader />
       <ShelterHeader shelter={shelter} />
 
-      <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <div className="page-container operator-content">
         <ShelterCapacityOverview shelter={shelter} available={available} />
 
-        <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
-          <IncomingReservations
-            reservations={[]}
-            unavailableMessage="The arrival queue is not available yet. Verify each arriving group with its evacuation code."
-          />
-
-          <div className="grid gap-6">
+        <div className="operator-grid">
+          <div className="operator-stack">
             <ReservationLookup
               shelterId={shelter.id}
               onVerified={setVerifiedReservation}
             />
 
             {verifiedReservation && (
-              <div className="grid gap-6" aria-live="polite">
+              <div className="operator-stack" aria-live="polite">
                 <ReservationDetails reservation={verifiedReservation} />
                 <ArrivalConfirmation
                   key={verifiedReservation.code}
@@ -138,6 +134,11 @@ function Shelter() {
               </div>
             )}
           </div>
+
+          <IncomingReservations
+            reservations={[]}
+            unavailableMessage="The arrival queue is not available yet. Verify each arriving group with its evacuation code."
+          />
         </div>
       </div>
     </main>

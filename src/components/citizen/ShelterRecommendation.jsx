@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   CircleAlert,
+  Clock3,
   Droplets,
   HeartPulse,
   House,
@@ -15,6 +16,8 @@ import {
   Zap,
 } from "lucide-react";
 
+import { calculateEvacuationEtaMinutes } from "../../lib/eta";
+
 const facilityIcons = {
   "Drinking Water": Droplets,
   Food: Utensils,
@@ -24,11 +27,15 @@ const facilityIcons = {
   "Wheelchair Access": Accessibility,
 };
 
-function getSelectionReasons(shelter, familyDetails) {
+function getSelectionReasons(shelter, familyDetails, disasterType) {
   const reasons = [];
 
-  if (shelter.cycloneSafe) {
-    reasons.push("Suitable for the current cyclone");
+  if (disasterType === "CYCLONE" && shelter.cycloneSafe) {
+    reasons.push("Marked cyclone-safe in current shelter data");
+  }
+
+  if (disasterType === "FLOOD" && shelter.floodSafe) {
+    reasons.push("Marked flood-safe in current shelter data");
   }
 
   if (shelter.availableCapacity >= familyDetails.totalPeople) {
@@ -36,15 +43,11 @@ function getSelectionReasons(shelter, familyDetails) {
   }
 
   if (shelter.routeAccessible) {
-    reasons.push("Safe route available");
+    reasons.push("Route is currently marked accessible");
   }
 
-  if (!familyDetails.mobilityAssistance || shelter.accessible) {
-    reasons.push(
-      familyDetails.mobilityAssistance
-        ? "Supports help moving around"
-        : "No extra movement support required",
-    );
+  if (familyDetails.mobilityAssistance && shelter.accessible) {
+    reasons.push("Mobility assistance is supported");
   }
 
   if (shelter.safetyScore >= 90) {
@@ -95,6 +98,7 @@ function NoSuitableShelter({ onBack }) {
 export default function ShelterRecommendation({
   shelter,
   familyDetails,
+  disasterType,
   onBack,
   onReserve,
   isReserving = false,
@@ -103,7 +107,16 @@ export default function ShelterRecommendation({
     return <NoSuitableShelter onBack={onBack} />;
   }
 
-  const selectionReasons = getSelectionReasons(shelter, familyDetails);
+  const selectionReasons = getSelectionReasons(shelter, familyDetails, disasterType);
+  const etaMinutes = calculateEvacuationEtaMinutes({
+    distanceKm: shelter.distanceKm,
+    mobilityAssistance: familyDetails.mobilityAssistance,
+  });
+  const safetyStatus = disasterType === "CYCLONE" && shelter.cycloneSafe
+    ? "Cyclone-safe"
+    : disasterType === "FLOOD" && shelter.floodSafe
+      ? "Flood-safe"
+      : `${shelter.safetyScore}/100 safety rating`;
   const scoreRows = [
     ["Safety", shelter.scoreBreakdown.safety, 40],
     ["Capacity", shelter.scoreBreakdown.capacity, 25],
@@ -118,7 +131,7 @@ export default function ShelterRecommendation({
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center gap-2 rounded-2xl px-1 py-2 text-sm font-semibold text-teal-800 transition hover:text-teal-950 focus:outline-none focus:ring-4 focus:ring-teal-100"
+          className="inline-flex min-h-11 items-center gap-2 rounded-2xl px-1 py-2 text-sm font-semibold text-teal-800 transition hover:text-teal-950 focus:outline-none focus:ring-4 focus:ring-teal-100"
         >
           <ArrowLeft size={18} aria-hidden="true" />
           Change Family Details
@@ -156,9 +169,12 @@ export default function ShelterRecommendation({
           </div>
 
           <div className="rounded-2xl border border-slate-200 p-5">
-            <p className="text-sm text-slate-500">Suitability Score</p>
-            <p className="mt-2 text-xl font-bold text-teal-700">
-              {shelter.suitabilityScore} / 100
+            <div className="flex items-center gap-3">
+              <Clock3 size={20} className="text-teal-700" aria-hidden="true" />
+              <p className="text-sm text-slate-500">Estimated Travel Time</p>
+            </div>
+            <p className="mt-3 text-xl font-bold text-slate-900">
+              Approx. {etaMinutes} min
             </p>
           </div>
 
@@ -175,47 +191,29 @@ export default function ShelterRecommendation({
           <div className="rounded-2xl border border-slate-200 p-5">
             <div className="flex items-center gap-3">
               <Route size={20} className="text-teal-700" aria-hidden="true" />
-              <p className="text-sm text-slate-500">Route</p>
+              <p className="text-sm text-slate-500">Safety Status</p>
             </div>
-            <p className="mt-3 font-semibold text-slate-900">Accessible</p>
+            <p className="mt-3 font-semibold text-slate-900">
+              {safetyStatus}
+            </p>
           </div>
 
           <div className="rounded-2xl border border-slate-200 p-5 sm:col-span-2">
             <div className="flex items-center gap-3">
               <Accessibility size={20} className="text-teal-700" aria-hidden="true" />
-              <p className="text-sm text-slate-500">Extra Help</p>
+              <p className="text-sm text-slate-500">Route and Mobility Access</p>
             </div>
             <p className="mt-3 font-semibold text-slate-900">
-              {shelter.accessible
-                ? "Help moving around supported"
-                : "Help moving around not supported"}
+              {shelter.routeAccessible ? "Accessible route" : "Route access unavailable"}
+              {familyDetails.mobilityAssistance
+                ? shelter.accessible ? " · Mobility assistance supported" : " · Mobility assistance unavailable"
+                : ""}
             </p>
           </div>
         </div>
 
-        <div>
-          <h3 className="font-bold text-slate-900">Facilities</h3>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            {shelter.facilities.map((facility) => {
-              const Icon = facilityIcons[facility] ?? CheckCircle2;
-
-              return (
-                <div
-                  key={facility}
-                  className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4 text-slate-700"
-                >
-                  <Icon size={19} className="shrink-0 text-teal-700" aria-hidden="true" />
-                  <span className="text-sm font-medium">{facility}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
         <div className="rounded-2xl border border-slate-200 p-5">
-          <h3 className="font-bold text-slate-900">
-            Why Aashray selected this shelter
-          </h3>
+          <h3 className="font-bold text-slate-900">Why this shelter?</h3>
 
           <div className="mt-4 grid gap-3">
             {selectionReasons.map((reason) => (
@@ -226,35 +224,6 @@ export default function ShelterRecommendation({
                   aria-hidden="true"
                 />
                 <p className="text-sm leading-6 text-slate-600">{reason}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 p-5">
-          <div className="flex items-start gap-3">
-            <ShieldCheck size={21} className="mt-0.5 shrink-0 text-teal-700" aria-hidden="true" />
-            <div>
-              <h3 className="font-bold text-slate-900">
-                Deterministic Shelter Suitability Score
-              </h3>
-              <p className="mt-1 text-sm leading-6 text-slate-500">
-                The score is calculated from shelter data, not generated as a
-                prediction.
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-5 grid gap-3">
-            {scoreRows.map(([label, score, max]) => (
-              <div
-                key={label}
-                className="flex items-center justify-between gap-4 border-b border-slate-100 pb-3 last:border-b-0 last:pb-0"
-              >
-                <span className="text-sm font-medium text-slate-600">{label}</span>
-                <span className="font-bold tabular-nums text-slate-900">
-                  {score} / {max}
-                </span>
               </div>
             ))}
           </div>
@@ -273,6 +242,49 @@ export default function ShelterRecommendation({
             ? "Reserving Spaces..."
             : `Reserve ${familyDetails.totalPeople} Spaces`}
         </button>
+
+        <details className="disclosure-panel">
+          <summary>Facilities</summary>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {shelter.facilities.map((facility) => {
+              const Icon = facilityIcons[facility] ?? CheckCircle2;
+
+              return (
+                <div
+                  key={facility}
+                  className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4 text-slate-700"
+                >
+                  <Icon size={19} className="shrink-0 text-teal-700" aria-hidden="true" />
+                  <span className="text-sm font-medium">{facility}</span>
+                </div>
+              );
+            })}
+          </div>
+        </details>
+
+        <details className="disclosure-panel">
+          <summary>How suitability was calculated</summary>
+          <div className="mt-4 flex items-start gap-3">
+            <ShieldCheck size={21} className="mt-0.5 shrink-0 text-teal-700" aria-hidden="true" />
+            <p className="m-0 text-sm leading-6 text-slate-500">
+              A deterministic score uses current shelter safety, capacity,
+              distance, route, and facility data. It is not a prediction.
+            </p>
+          </div>
+          <div className="mt-5 grid gap-3">
+            {scoreRows.map(([label, score, max]) => (
+              <div
+                key={label}
+                className="flex items-center justify-between gap-4 border-b border-slate-100 pb-3 last:border-b-0 last:pb-0"
+              >
+                <span className="text-sm font-medium text-slate-600">{label}</span>
+                <span className="font-bold tabular-nums text-slate-900">
+                  {score} / {max}
+                </span>
+              </div>
+            ))}
+          </div>
+        </details>
       </div>
     </section>
   );

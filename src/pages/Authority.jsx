@@ -1,15 +1,5 @@
-import {
-  Activity,
-  ArrowLeft,
-  Building2,
-  CheckCircle2,
-  Clock3,
-  Radio,
-  ShieldCheck,
-  Siren,
-  Users,
-} from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Building2, Clock3, Info, Siren, Users } from 'lucide-react'
+import { AppHeader } from '../components/AppHeader.jsx'
 
 const incidents = [
   ['Flooding near Yamuna Bazar', 'High', '68 citizens affected'],
@@ -18,132 +8,81 @@ const incidents = [
 ]
 
 const zones = [
-  ['North Zone', '86%', '142 beds occupied'],
-  ['Central Zone', '71%', '88 beds occupied'],
-  ['East Zone', '64%', '73 beds occupied'],
+  ['North Zone', 86, '142 beds occupied'],
+  ['Central Zone', 71, '88 beds occupied'],
+  ['East Zone', 64, '73 beds occupied'],
 ]
 
-function Authority() {
+const metrics = [
+  [Users, '312', 'people placed today'],
+  [Building2, '41', 'shelters reporting'],
+  [Clock3, '16 min', 'median dispatch time'],
+  [Siren, '3', 'priority incidents'],
+]
+
+export default function Authority() {
   return (
-    <main className="page role-page authority-theme">
-      <RoleNav current="Authority" />
-
-      <section className="role-hero">
-        <div>
-          <p className="eyebrow">Authority page</p>
-          <h1>Coordinate response across the city</h1>
-          <p>
-            See demand patterns, prioritize incidents, and dispatch support to
-            shelters before capacity pressure becomes a crisis.
-          </p>
-        </div>
-        <div className="status-card">
-          <ShieldCheck size={22} aria-hidden="true" />
-          <span>City readiness</span>
-          <strong>Stable with 3 watch zones</strong>
-          <small>Updated from active shelter feeds</small>
-        </div>
-      </section>
-
-      <section className="stats-strip" aria-label="Authority metrics">
-        <div>
-          <Users size={21} aria-hidden="true" />
-          <strong>312</strong>
-          <span>people placed today</span>
-        </div>
-        <div>
-          <Building2 size={21} aria-hidden="true" />
-          <strong>41</strong>
-          <span>shelters reporting</span>
-        </div>
-        <div>
-          <Clock3 size={21} aria-hidden="true" />
-          <strong>16 min</strong>
-          <span>median dispatch time</span>
-        </div>
-      </section>
-
-      <section className="workspace-grid">
-        <div className="tool-panel wide">
-          <div className="section-heading">
-            <h2>Priority incidents</h2>
-            <span>Response queue</span>
+    <main>
+      <AppHeader />
+      <div className="page-container authority-page">
+        <section className="authority-title-row" aria-labelledby="authority-heading">
+          <div>
+            <p className="eyebrow-label">Authority coordination</p>
+            <h1 id="authority-heading">City response overview</h1>
+            <p>Prioritize incidents, monitor shelter pressure, and coordinate support across affected zones.</p>
           </div>
-          <div className="incident-list">
-            {incidents.map(([title, priority, detail]) => (
-              <article className="incident-row" key={title}>
-                <span className="row-icon">
-                  <Siren size={20} aria-hidden="true" />
-                </span>
-                <div>
-                  <h3>{title}</h3>
-                  <p>{detail}</p>
+          <div className="authority-alert">
+            <Siren size={23} aria-hidden="true" />
+            <div>
+              <small>Active emergency · High severity</small>
+              <strong>3 priority incidents</strong>
+              <span>3 reported locations</span>
+            </div>
+          </div>
+        </section>
+
+        <section className="authority-stats" aria-label="Authority metrics">
+          {metrics.map(([Icon, value, label]) => (
+            <article className="surface-card authority-stat" key={label}>
+              <Icon size={21} aria-hidden="true" />
+              <strong>{value}</strong>
+              <span>{label}</span>
+            </article>
+          ))}
+        </section>
+
+        <section className="authority-grid">
+          <article className="surface-card authority-card">
+            <div className="operator-card-heading">
+              <div><p className="operator-section-label">Response queue</p><h2>Priority incidents</h2></div>
+              <span className="status-badge danger">Action needed</span>
+            </div>
+            <div className="incident-list">
+              {incidents.map(([title, priority, detail]) => (
+                <div className="incident-item" key={title}>
+                  <span className="incident-item-icon"><Siren size={19} aria-hidden="true" /></span>
+                  <div><h3>{title}</h3><p>{detail}</p></div>
+                  <span className={`status-badge ${priority === 'High' ? 'danger' : 'warning'}`}>{priority}</span>
                 </div>
-                <strong className={`priority ${priority.toLowerCase()}`}>
-                  {priority}
-                </strong>
-              </article>
-            ))}
-          </div>
-        </div>
+              ))}
+            </div>
+          </article>
 
-        <div className="tool-panel">
-          <div className="section-heading">
-            <h2>Zone capacity</h2>
-          </div>
-          <div className="capacity-list">
-            {zones.map(([zone, percent, detail]) => (
-              <div className="capacity-row" key={zone}>
-                <div>
-                  <strong>{zone}</strong>
-                  <span>{detail}</span>
+          <article className="surface-card authority-card">
+            <div className="operator-card-heading"><div><p className="operator-section-label">Live availability</p><h2>Zone capacity</h2></div></div>
+            <div className="zone-list">
+              {zones.map(([zone, percent, detail]) => (
+                <div className="zone-item" key={zone}>
+                  <div className="zone-item-top"><div><strong>{zone}</strong><br /><span>{detail}</span></div><strong>{percent}%</strong></div>
+                  <div className="zone-progress" aria-label={`${zone} ${percent}% occupied`}><i style={{ width: `${percent}%` }} /></div>
                 </div>
-                <span>{percent}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+              ))}
+            </div>
+          </article>
+        </section>
 
-        <div className="tool-panel">
-          <div className="section-heading">
-            <h2>Actions</h2>
-          </div>
-          <div className="quick-actions">
-            <button type="button">
-              <Radio size={19} aria-hidden="true" />
-              Dispatch team
-            </button>
-            <button type="button">
-              <Activity size={19} aria-hidden="true" />
-              Open live map
-            </button>
-            <button type="button">
-              <CheckCircle2 size={19} aria-hidden="true" />
-              Publish advisory
-            </button>
-          </div>
-        </div>
-      </section>
+        <p className="demo-note"><Info size={14} aria-hidden="true" /> Authority metrics are demonstration data for the prototype.</p>
+      </div>
     </main>
   )
 }
-
-function RoleNav({ current }) {
-  return (
-    <nav className="topbar" aria-label="Role navigation">
-      <Link className="brand" to="/">
-        <span className="brand-mark">A</span>
-        <span>Aashray AI</span>
-      </Link>
-      <div className="nav-links">
-        <Link to="/">
-          <ArrowLeft size={16} aria-hidden="true" />
-          Home
-        </Link>
-        <span>{current}</span>
-      </div>
-    </nav>
-  )
-}
-
-export default Authority

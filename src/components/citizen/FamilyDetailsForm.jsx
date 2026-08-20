@@ -94,7 +94,7 @@ export default function FamilyDetailsForm({ initialDetails, onBack, onSubmit }) 
       <button
         type="button"
         onClick={onBack}
-        className="inline-flex items-center gap-2 rounded-2xl px-1 py-2 text-sm font-semibold text-slate-600 transition hover:text-slate-900 focus:outline-none focus:ring-4 focus:ring-teal-100"
+        className="inline-flex min-h-11 items-center gap-2 rounded-2xl px-1 py-2 text-sm font-semibold text-slate-600 transition hover:text-slate-900 focus:outline-none focus:ring-4 focus:ring-teal-100"
       >
         <ArrowLeft size={18} aria-hidden="true" />
         Back to Alert
@@ -156,9 +156,7 @@ export default function FamilyDetailsForm({ initialDetails, onBack, onSubmit }) 
             </div>
 
             <div className="min-w-0 flex-1">
-              <p className="font-semibold text-slate-900">
-                Extra Help
-              </p>
+              <p className="font-semibold text-slate-900">Mobility Assistance</p>
 
               <label
                 htmlFor="mobility-assistance"
@@ -173,7 +171,7 @@ export default function FamilyDetailsForm({ initialDetails, onBack, onSubmit }) 
                 />
 
                 <span className="text-sm font-medium leading-6">
-                  Need help moving around
+                  Does anyone need mobility assistance?
                 </span>
               </label>
             </div>
