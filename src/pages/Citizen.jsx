@@ -360,7 +360,7 @@ async function loadDisasterWithFallback() {
     };
   } catch (error) {
     if (import.meta.env.DEV) {
-      console.warn(
+      console.info(
         "Using bundled demo disaster because Firestore disaster data is unavailable:",
         getFirebaseErrorDetails(error),
       );
@@ -381,7 +381,7 @@ async function loadSheltersWithFallback() {
     };
   } catch (error) {
     if (import.meta.env.DEV) {
-      console.warn(
+      console.info(
         "Using bundled demo shelters because Firestore shelter data is unavailable:",
         getFirebaseErrorDetails(error),
       );

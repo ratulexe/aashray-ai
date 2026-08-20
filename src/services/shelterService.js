@@ -14,8 +14,11 @@ function isOfflineFirestoreError(error) {
 }
 
 function logFirestoreReadFailure(message, error) {
-  const log = isOfflineFirestoreError(error) ? console.warn : console.error;
-  log(message, {
+  if (isOfflineFirestoreError(error)) {
+    return;
+  }
+
+  console.error(message, {
     code: error?.code ?? "unknown",
     message: error?.message ?? String(error),
   });

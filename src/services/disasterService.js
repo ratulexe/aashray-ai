@@ -23,11 +23,13 @@ export async function getDisasterById(disasterId) {
       ...snapshot.data(),
     };
   } catch (error) {
-    const log = isOfflineFirestoreError(error) ? console.warn : console.error;
-    log("Failed to load disaster:", {
-      code: error?.code ?? "unknown",
-      message: error?.message ?? String(error),
-    });
+    if (!isOfflineFirestoreError(error)) {
+      console.error("Failed to load disaster:", {
+        code: error?.code ?? "unknown",
+        message: error?.message ?? String(error),
+      });
+    }
+
     throw error;
   }
 }
