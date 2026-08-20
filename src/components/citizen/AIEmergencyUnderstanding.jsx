@@ -122,14 +122,18 @@ function AIReviewCard({ result, onEdit, onConfirm }) {
 }
 
 export default function AIEmergencyUnderstanding({
+  initialMessage = "",
+  initialResult = null,
   onBack,
   onManual,
+  onAnalyzed,
+  onDraftChange,
   onConfirm,
   onEdit,
 }) {
-  const [message, setMessage] = useState("");
-  const [result, setResult] = useState(null);
-  const [status, setStatus] = useState("idle");
+  const [message, setMessage] = useState(initialMessage);
+  const [result, setResult] = useState(initialResult);
+  const [status, setStatus] = useState(initialResult ? "ready" : "idle");
   const [errorMessage, setErrorMessage] = useState("");
   const isLoading = status === "loading";
 
@@ -153,6 +157,7 @@ export default function AIEmergencyUnderstanding({
 
       setResult(aiResult);
       setStatus("ready");
+      onAnalyzed?.(aiResult, trimmedMessage);
     } catch {
       setErrorMessage(
         "AI assistance is temporarily unavailable. You can continue by entering your family details manually.",
@@ -206,8 +211,12 @@ export default function AIEmergencyUnderstanding({
             name="emergency-description"
             value={message}
             onChange={(event) => {
-              setMessage(event.target.value);
+              const nextMessage = event.target.value;
+
+              setMessage(nextMessage);
               setErrorMessage("");
+              setResult(null);
+              onDraftChange?.(nextMessage);
               if (status === "error") {
                 setStatus("idle");
               }

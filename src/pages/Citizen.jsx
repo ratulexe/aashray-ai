@@ -671,10 +671,21 @@ function getFamilyDetailsFromAIResult(aiResult) {
 }
 
 function getEditableFamilyDetailsFromAIResult(aiResult) {
+  const peopleCount =
+    Number.isInteger(aiResult?.peopleCount) && aiResult.peopleCount > 0
+      ? aiResult.peopleCount
+      : null;
+  const knownAdults = Number.isInteger(aiResult?.adults) ? aiResult.adults : 0;
+  const knownChildren = Number.isInteger(aiResult?.children) ? aiResult.children : 0;
+  const knownElderly = Number.isInteger(aiResult?.elderly) ? aiResult.elderly : 0;
+  const knownTotal = knownAdults + knownChildren + knownElderly;
+  const unassignedPeople =
+    peopleCount === null ? 0 : Math.max(0, peopleCount - knownTotal);
+
   return {
-    adults: Number.isInteger(aiResult?.adults) && aiResult.adults > 0 ? aiResult.adults : 1,
-    children: Number.isInteger(aiResult?.children) ? aiResult.children : 0,
-    elderly: Number.isInteger(aiResult?.elderly) ? aiResult.elderly : 0,
+    adults: Math.max(1, knownAdults + unassignedPeople),
+    children: knownChildren,
+    elderly: knownElderly,
     mobilityAssistance: Boolean(aiResult?.mobilityAssistance),
   };
 }
@@ -682,6 +693,10 @@ function getEditableFamilyDetailsFromAIResult(aiResult) {
 export default function Citizen() {
   const [step, setStep] = useState("alert");
   const [familyDetails, setFamilyDetails] = useState(null);
+  const [aiEmergencyDraft, setAiEmergencyDraft] = useState({
+    message: "",
+    result: null,
+  });
   const [allocationResult, setAllocationResult] = useState(null);
   const [reservation, setReservation] = useState(null);
   const [reservationErrorCode, setReservationErrorCode] = useState(null);
@@ -720,6 +735,7 @@ export default function Citizen() {
 
     setStep("alert");
     setFamilyDetails(null);
+    setAiEmergencyDraft({ message: "", result: null });
     setAllocationResult(null);
     setReservation(null);
     setReservationErrorCode(null);
@@ -898,6 +914,11 @@ export default function Citizen() {
   };
 
   const handleAIConfirm = (aiResult) => {
+    setAiEmergencyDraft((currentDraft) => ({
+      ...currentDraft,
+      result: aiResult,
+    }));
+
     const details = getFamilyDetailsFromAIResult(aiResult);
 
     if (!details) {
@@ -913,11 +934,29 @@ export default function Citizen() {
   };
 
   const handleAIEdit = (aiResult) => {
+    setAiEmergencyDraft((currentDraft) => ({
+      ...currentDraft,
+      result: aiResult,
+    }));
     setFamilyDetails(getEditableFamilyDetailsFromAIResult(aiResult));
     setAllocationResult(null);
     setReservation(null);
     setReservationErrorCode(null);
     setStep("family");
+  };
+
+  const handleAIAnalyzed = (aiResult, message) => {
+    setAiEmergencyDraft({
+      message,
+      result: aiResult,
+    });
+  };
+
+  const handleAIDraftChange = (message) => {
+    setAiEmergencyDraft({
+      message,
+      result: null,
+    });
   };
 
   const updateLocalShelterReservation = useCallback((reservationResult) => {
@@ -1177,11 +1216,15 @@ export default function Citizen() {
 
         {!dataLoading && !dataError && isCriticalEmergency && step === "ai" && (
           <AIEmergencyUnderstanding
+            initialMessage={aiEmergencyDraft.message}
+            initialResult={aiEmergencyDraft.result}
             onBack={() => setStep("alert")}
             onManual={() => {
               setFamilyDetails(null);
               setStep("family");
             }}
+            onAnalyzed={handleAIAnalyzed}
+            onDraftChange={handleAIDraftChange}
             onConfirm={handleAIConfirm}
             onEdit={handleAIEdit}
           />
