@@ -9,6 +9,7 @@ import {
   Navigation,
   Radio,
   RefreshCw,
+  RotateCcw,
 } from "lucide-react";
 
 import { AppHeader } from "../components/AppHeader";
@@ -295,25 +296,25 @@ function getEmergencyAssessment(disaster, userLocation) {
   };
 }
 
-function getLocationCopy(locationStatus) {
-  if (locationStatus === "ready") {
-    return "Current location loaded";
+function getLocationCopy(locationStatus, locationMode = "device") {
+  if (locationMode === "demo") {
+    return "Demo Location";
   }
 
-  if (locationStatus === "fallback") {
-    return "Using demo location fallback";
+  if (locationStatus === "ready") {
+    return "Device GPS";
   }
 
   if (locationStatus === "denied") {
-    return "Permission denied; using demo location";
+    return "Device GPS permission denied";
   }
 
   if (locationStatus === "unsupported") {
-    return "Current location unavailable; using demo location";
+    return "Device GPS unavailable";
   }
 
   if (locationStatus === "error") {
-    return "Location could not be loaded; using demo location";
+    return "Device GPS could not be loaded";
   }
 
   return "Loading current location";
@@ -394,7 +395,87 @@ async function loadSheltersWithFallback() {
   }
 }
 
-function ActiveEmergencyElsewhereCard({ disaster, assessment, locationStatus }) {
+function DemoModeBadge() {
+  return (
+    <span className="inline-flex min-h-8 items-center rounded-full bg-amber-100 px-3 text-xs font-black uppercase tracking-wider text-amber-800">
+      Demo Mode
+    </span>
+  );
+}
+
+function DemoLocationControl({
+  locationMode,
+  locationStatus,
+  onUseDemoLocation,
+  onUseMyLocation,
+  isRetryingLocation,
+}) {
+  const isDemo = locationMode === "demo";
+
+  return (
+    <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-semibold uppercase tracking-wider text-amber-800">
+              Prototype Demo
+            </p>
+            {isDemo && <DemoModeBadge />}
+          </div>
+
+          <h3 className="mt-2 text-xl font-bold text-slate-900">
+            {isDemo ? "Demo Location" : "Use Demo Location"}
+          </h3>
+
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-700">
+            {isDemo
+              ? "Diamond Harbour evacuation scenario is active for this prototype demonstration."
+              : "Your current location is outside this evacuation zone. Use the demo location to simulate a resident inside the Diamond Harbour evacuation area."}
+          </p>
+        </div>
+
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-52">
+          {isDemo ? (
+            <button
+              type="button"
+              onClick={onUseMyLocation}
+              disabled={isRetryingLocation}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-amber-300 bg-white px-4 text-sm font-semibold text-amber-800 transition hover:bg-amber-100 focus:outline-none focus:ring-4 focus:ring-amber-100 disabled:cursor-not-allowed disabled:opacity-70"
+              aria-label="Return to my device GPS location"
+            >
+              <RotateCcw size={17} aria-hidden="true" />
+              {isRetryingLocation ? "Loading My Location" : "Return to My Location"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onUseDemoLocation}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-amber-600 px-4 text-sm font-semibold text-white transition hover:bg-amber-700 focus:outline-none focus:ring-4 focus:ring-amber-100"
+              aria-label="Use the simulated Diamond Harbour demo location"
+            >
+              <MapPin size={17} aria-hidden="true" />
+              Use Demo Location
+            </button>
+          )}
+
+          <p className="text-xs font-medium leading-5 text-amber-800">
+            Active source: {getLocationCopy(locationStatus, locationMode)}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ActiveEmergencyElsewhereCard({
+  disaster,
+  assessment,
+  locationStatus,
+  locationMode,
+  onUseDemoLocation,
+  onUseMyLocation,
+  isRetryingLocation,
+}) {
   const distanceLabel = Number.isFinite(assessment.distanceKm)
     ? `${assessment.distanceKm.toFixed(1)} km from the affected zone center`
     : "Outside the affected evacuation zone";
@@ -424,7 +505,7 @@ function ActiveEmergencyElsewhereCard({ disaster, assessment, locationStatus }) 
         <div className="rounded-2xl border border-slate-200 p-5">
           <p className="text-sm text-slate-500">Current location</p>
           <p className="mt-2 font-semibold text-slate-900">
-            {getLocationCopy(locationStatus)}
+            {getLocationCopy(locationStatus, locationMode)}
           </p>
         </div>
 
@@ -446,6 +527,61 @@ function ActiveEmergencyElsewhereCard({ disaster, assessment, locationStatus }) 
           </p>
         </div>
       </div>
+
+      <DemoLocationControl
+        locationMode={locationMode}
+        locationStatus={locationStatus}
+        onUseDemoLocation={onUseDemoLocation}
+        onUseMyLocation={onUseMyLocation}
+        isRetryingLocation={isRetryingLocation}
+      />
+    </section>
+  );
+}
+
+function LocationUnavailableDuringEmergencyCard({
+  disaster,
+  locationStatus,
+  locationMode,
+  onUseDemoLocation,
+  onUseMyLocation,
+  isRetryingLocation,
+}) {
+  return (
+    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-700">
+        <MapPin size={30} aria-hidden="true" />
+      </div>
+
+      <div className="mt-6">
+        <p className="text-sm font-semibold uppercase tracking-wider text-amber-700">
+          Location Check Needed
+        </p>
+
+        <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+          {disaster.title}
+        </h2>
+
+        <p className="mt-3 leading-7 text-slate-600">
+          Aashray AI needs your device GPS location to check whether this
+          active emergency affects you.
+        </p>
+      </div>
+
+      <div className="mt-8 rounded-2xl border border-slate-200 p-5">
+        <p className="text-sm text-slate-500">Current location source</p>
+        <p className="mt-2 font-semibold text-slate-900">
+          {getLocationCopy(locationStatus, locationMode)}
+        </p>
+      </div>
+
+      <DemoLocationControl
+        locationMode={locationMode}
+        locationStatus={locationStatus}
+        onUseDemoLocation={onUseDemoLocation}
+        onUseMyLocation={onUseMyLocation}
+        isRetryingLocation={isRetryingLocation}
+      />
     </section>
   );
 }
@@ -489,8 +625,10 @@ export default function Citizen() {
   const [isReserving, setIsReserving] = useState(false);
   const [activeDisaster, setActiveDisaster] = useState(null);
   const [firestoreShelters, setFirestoreShelters] = useState([]);
-  const [userLocation, setUserLocation] = useState(null);
+  const [deviceLocation, setDeviceLocation] = useState(null);
+  const [locationMode, setLocationMode] = useState("device");
   const [locationStatus, setLocationStatus] = useState("loading");
+  const [isRetryingLocation, setIsRetryingLocation] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
   const [dataError, setDataError] = useState(null);
   const searchTimeoutRef = useRef(null);
@@ -500,11 +638,15 @@ export default function Citizen() {
 
   const hasActiveEmergency =
     activeDisaster && activeDisaster.status === "ACTIVE";
+  const userLocation =
+    locationMode === "demo" ? demoUserLocation : deviceLocation;
   const emergencyAssessment = getEmergencyAssessment(activeDisaster, userLocation);
   const isCriticalEmergency =
     hasActiveEmergency && emergencyAssessment.status === "critical";
   const isActiveEmergencyElsewhere =
     hasActiveEmergency && emergencyAssessment.status === "elsewhere";
+  const isActiveEmergencyLocationUnavailable =
+    hasActiveEmergency && emergencyAssessment.status === "inactive";
 
   const resetEmergencyFlow = useCallback(() => {
     if (searchTimeoutRef.current) {
@@ -519,6 +661,61 @@ export default function Citizen() {
     setReservationErrorCode(null);
     setIsReserving(false);
   }, []);
+
+  const handleUseDemoLocation = useCallback(() => {
+    setLocationMode("demo");
+    resetEmergencyFlow();
+  }, [resetEmergencyFlow]);
+
+  const handleUseMyLocation = useCallback(async () => {
+    if (deviceLocation) {
+      setLocationMode("device");
+      resetEmergencyFlow();
+      return;
+    }
+
+    try {
+      setIsRetryingLocation(true);
+      setLocationStatus("loading");
+
+      const location = await getBrowserLocation();
+
+      if (!isMountedRef.current) {
+        return;
+      }
+
+      setDeviceLocation(location);
+      setLocationStatus("ready");
+      setLocationMode("device");
+      resetEmergencyFlow();
+    } catch (error) {
+      if (!isMountedRef.current) {
+        return;
+      }
+
+      const status =
+        error?.code === 1
+          ? "denied"
+          : error?.message === "GEOLOCATION_UNSUPPORTED"
+            ? "unsupported"
+            : "error";
+
+      setDeviceLocation(null);
+      setLocationStatus(status);
+
+      if (import.meta.env.DEV) {
+        console.warn("Unable to restore device location:", {
+          status,
+          code: error?.code ?? "unknown",
+          message: error?.message ?? String(error),
+        });
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setIsRetryingLocation(false);
+      }
+    }
+  }, [deviceLocation, resetEmergencyFlow]);
 
   const loadCitizenData = useCallback(async () => {
     const requestId = loadRequestIdRef.current + 1;
@@ -543,10 +740,10 @@ export default function Citizen() {
                 ? "denied"
                 : error?.message === "GEOLOCATION_UNSUPPORTED"
                   ? "unsupported"
-                  : "fallback";
+                  : "error";
 
             if (import.meta.env.DEV) {
-              console.warn("Using demo citizen location fallback:", {
+              console.warn("Citizen device location unavailable:", {
                 status,
                 code: error?.code ?? "unknown",
                 message: error?.message ?? String(error),
@@ -554,7 +751,7 @@ export default function Citizen() {
             }
 
             return {
-              location: demoUserLocation,
+              location: null,
               status,
             };
           }),
@@ -569,7 +766,8 @@ export default function Citizen() {
 
       setActiveDisaster(disaster);
       setFirestoreShelters(shelterData);
-      setUserLocation(locationResult.location);
+      setDeviceLocation(locationResult.location);
+      setLocationMode("device");
       setLocationStatus(locationResult.status);
 
       const assessment = getEmergencyAssessment(disaster, locationResult.location);
@@ -837,7 +1035,7 @@ export default function Citizen() {
                   </p>
 
                   <p className="mt-1 font-semibold text-slate-900">
-                    {getLocationCopy(locationStatus)}
+                    {getLocationCopy(locationStatus, locationMode)}
                   </p>
                 </div>
               </div>
@@ -868,6 +1066,21 @@ export default function Citizen() {
             disaster={activeDisaster}
             assessment={emergencyAssessment}
             locationStatus={locationStatus}
+            locationMode={locationMode}
+            onUseDemoLocation={handleUseDemoLocation}
+            onUseMyLocation={handleUseMyLocation}
+            isRetryingLocation={isRetryingLocation}
+          />
+        )}
+
+        {!dataLoading && !dataError && isActiveEmergencyLocationUnavailable && (
+          <LocationUnavailableDuringEmergencyCard
+            disaster={activeDisaster}
+            locationStatus={locationStatus}
+            locationMode={locationMode}
+            onUseDemoLocation={handleUseDemoLocation}
+            onUseMyLocation={handleUseMyLocation}
+            isRetryingLocation={isRetryingLocation}
           />
         )}
 
@@ -893,11 +1106,22 @@ export default function Citizen() {
                 disaster={activeDisaster}
                 assessment={emergencyAssessment}
                 locationStatus={locationStatus}
+                locationMode={locationMode}
                 onFindShelter={() => setStep("ai")}
               />
 
               <CycloneTrackingPanel disaster={activeDisaster} />
             </div>
+
+            {locationMode === "demo" && (
+              <DemoLocationControl
+                locationMode={locationMode}
+                locationStatus={locationStatus}
+                onUseDemoLocation={handleUseDemoLocation}
+                onUseMyLocation={handleUseMyLocation}
+                isRetryingLocation={isRetryingLocation}
+              />
+            )}
 
           </>
         )}

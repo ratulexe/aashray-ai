@@ -1,20 +1,24 @@
 import { ArrowRight, MapPin, Navigation, Radio, TriangleAlert } from 'lucide-react'
 
-function getLocationCopy(locationStatus) {
+function getLocationCopy(locationStatus, locationMode = 'device') {
+  if (locationMode === 'demo') {
+    return 'Demo Location'
+  }
+
   if (locationStatus === 'ready') {
-    return 'Current location loaded'
+    return 'Device GPS'
   }
 
   if (locationStatus === 'denied') {
-    return 'Permission denied; using demo location'
+    return 'Device GPS permission denied'
   }
 
   if (locationStatus === 'unsupported') {
-    return 'Current location unavailable; using demo location'
+    return 'Device GPS unavailable'
   }
 
-  if (locationStatus === 'fallback') {
-    return 'Using demo location fallback'
+  if (locationStatus === 'error') {
+    return 'Device GPS could not be loaded'
   }
 
   return 'Checking current location'
@@ -24,8 +28,10 @@ export default function CinematicEmergencyCard({
   disaster,
   assessment,
   locationStatus,
+  locationMode,
   onFindShelter,
 }) {
+  const isDemoMode = locationMode === 'demo'
   const distanceLabel = Number.isFinite(assessment?.distanceKm)
     ? `${assessment.distanceKm.toFixed(1)} km from alert center`
     : 'Inside evacuation zone'
@@ -42,6 +48,7 @@ export default function CinematicEmergencyCard({
             <div className="emergency-alert-label">
               <p>Emergency alert</p>
               <span className="status-badge danger"><Radio size={12} aria-hidden="true" /> Active</span>
+              {isDemoMode && <span className="status-badge warning">Demo Mode</span>}
             </div>
             <h2 id="emergency-alert-heading">{disaster.title}</h2>
           </div>
@@ -66,7 +73,8 @@ export default function CinematicEmergencyCard({
           </article>
           <article className="emergency-info-panel">
             <p>Current location</p>
-            <strong><MapPin size={17} aria-hidden="true" /> {getLocationCopy(locationStatus)}</strong>
+            <strong><MapPin size={17} aria-hidden="true" /> {getLocationCopy(locationStatus, locationMode)}</strong>
+            {isDemoMode && <small>Diamond Harbour evacuation scenario</small>}
           </article>
           <article className="emergency-info-panel">
             <p>Distance check</p>
