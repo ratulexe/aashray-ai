@@ -1,6 +1,35 @@
-import { ArrowRight, Navigation, Radio, TriangleAlert } from 'lucide-react'
+import { ArrowRight, MapPin, Navigation, Radio, TriangleAlert } from 'lucide-react'
 
-export default function CinematicEmergencyCard({ disaster, onFindShelter }) {
+function getLocationCopy(locationStatus) {
+  if (locationStatus === 'ready') {
+    return 'Current location loaded'
+  }
+
+  if (locationStatus === 'denied') {
+    return 'Permission denied; using demo location'
+  }
+
+  if (locationStatus === 'unsupported') {
+    return 'Current location unavailable; using demo location'
+  }
+
+  if (locationStatus === 'fallback') {
+    return 'Using demo location fallback'
+  }
+
+  return 'Checking current location'
+}
+
+export default function CinematicEmergencyCard({
+  disaster,
+  assessment,
+  locationStatus,
+  onFindShelter,
+}) {
+  const distanceLabel = Number.isFinite(assessment?.distanceKm)
+    ? `${assessment.distanceKm.toFixed(1)} km from alert center`
+    : 'Inside evacuation zone'
+
   return (
     <section className="surface-card emergency-alert-card" aria-labelledby="emergency-alert-heading">
       <div className="emergency-alert-accent" aria-hidden="true" />
@@ -20,7 +49,10 @@ export default function CinematicEmergencyCard({ disaster, onFindShelter }) {
 
         <div className="emergency-next-step">
           <p>What to do now</p>
-          <strong>{disaster.message}</strong>
+          <strong>
+            {disaster.message ||
+              'Your current location is inside the affected evacuation zone. Move to a designated safe shelter as soon as possible.'}
+          </strong>
         </div>
 
         <div className="emergency-info-grid">
@@ -31,6 +63,14 @@ export default function CinematicEmergencyCard({ disaster, onFindShelter }) {
           <article className="emergency-info-panel">
             <p>Affected area</p>
             <strong>{disaster.affectedArea}</strong>
+          </article>
+          <article className="emergency-info-panel">
+            <p>Current location</p>
+            <strong><MapPin size={17} aria-hidden="true" /> {getLocationCopy(locationStatus)}</strong>
+          </article>
+          <article className="emergency-info-panel">
+            <p>Distance check</p>
+            <strong>{distanceLabel}</strong>
           </article>
           <article className="emergency-info-panel duration-panel">
             <p>Expected duration</p>

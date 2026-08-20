@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { AppHeader } from "../components/AppHeader";
+import AIEmergencyUnderstanding from "../components/citizen/AIEmergencyUnderstanding";
 import FamilyDetailsForm from "../components/citizen/FamilyDetailsForm";
 import CinematicEmergencyCard from "../components/citizen/CinematicEmergencyCard";
 import CycloneTrackingPanel from "../components/citizen/CycloneTrackingPanel";
@@ -19,17 +20,25 @@ import ReservationConfirmation from "../components/citizen/ReservationConfirmati
 import ShelterRecommendation from "../components/citizen/ShelterRecommendation";
 import ShelterSearchState from "../components/citizen/ShelterSearchState";
 import { demoUserLocation } from "../data/demoData";
+import { calculateDistanceKm } from "../lib/distance";
 import { findBestShelter } from "../lib/shelterAllocation";
 import { getActiveDemoDisaster } from "../services/disasterService";
 import { createShelterReservation } from "../services/reservationService";
 import { getShelters } from "../services/shelterService";
 
 const reservationPhone = "98XXXXXX12";
+const GEOLOCATION_TIMEOUT_MS = 10000;
+const DEFAULT_DISASTER_CENTER = demoUserLocation;
 
 const citizenSteps = ["Family", "Shelter", "Reservation"];
 
 function CitizenFlowProgress({ step }) {
-  const currentStep = step === "family" ? 0 : step === "searching" || step === "result" ? 1 : 2;
+  const currentStep =
+    step === "ai" || step === "family"
+      ? 0
+      : step === "searching" || step === "result"
+        ? 1
+        : 2;
 
   return (
     <nav className="citizen-progress" aria-label="Evacuation progress">
@@ -221,6 +230,206 @@ function NoShelterDataCard({ onBack }) {
   );
 }
 
+function isFiniteNumber(value) {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function isUsableLocation(location) {
+  return (
+    location &&
+    isFiniteNumber(location.latitude) &&
+    isFiniteNumber(location.longitude)
+  );
+}
+
+function toLocation(value) {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const latitude = value.latitude ?? value.lat;
+  const longitude = value.longitude ?? value.lng ?? value.lon;
+
+  if (!isFiniteNumber(latitude) || !isFiniteNumber(longitude)) {
+    return null;
+  }
+
+  return { latitude, longitude };
+}
+
+function getDisasterCenter(disaster) {
+  return (
+    toLocation(disaster) ??
+    toLocation(disaster?.center) ??
+    toLocation(disaster?.location) ??
+    toLocation(disaster?.coordinates) ??
+    DEFAULT_DISASTER_CENTER
+  );
+}
+
+function getEmergencyAssessment(disaster, userLocation) {
+  if (!disaster || disaster.status !== "ACTIVE" || !isUsableLocation(userLocation)) {
+    return {
+      status: "inactive",
+      distanceKm: null,
+      isInsideRadius: false,
+    };
+  }
+
+  const disasterCenter = getDisasterCenter(disaster);
+  const radiusKm = isFiniteNumber(disaster.radiusKm) ? disaster.radiusKm : 0;
+  const distanceKm = calculateDistanceKm(
+    userLocation.latitude,
+    userLocation.longitude,
+    disasterCenter.latitude,
+    disasterCenter.longitude,
+  );
+
+  return {
+    status: distanceKm <= radiusKm ? "critical" : "elsewhere",
+    distanceKm,
+    isInsideRadius: distanceKm <= radiusKm,
+    radiusKm,
+    disasterCenter,
+  };
+}
+
+function getLocationCopy(locationStatus) {
+  if (locationStatus === "ready") {
+    return "Current location loaded";
+  }
+
+  if (locationStatus === "fallback") {
+    return "Using demo location fallback";
+  }
+
+  if (locationStatus === "denied") {
+    return "Permission denied; using demo location";
+  }
+
+  if (locationStatus === "unsupported") {
+    return "Current location unavailable; using demo location";
+  }
+
+  if (locationStatus === "error") {
+    return "Location could not be loaded; using demo location";
+  }
+
+  return "Loading current location";
+}
+
+function getBrowserLocation() {
+  if (!("geolocation" in navigator)) {
+    return Promise.reject(new Error("GEOLOCATION_UNSUPPORTED"));
+  }
+
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracyMeters: position.coords.accuracy,
+        });
+      },
+      (error) => {
+        reject(error);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: GEOLOCATION_TIMEOUT_MS,
+        maximumAge: 60000,
+      },
+    );
+  });
+}
+
+function ActiveEmergencyElsewhereCard({ disaster, assessment, locationStatus }) {
+  const distanceLabel = Number.isFinite(assessment.distanceKm)
+    ? `${assessment.distanceKm.toFixed(1)} km from the affected zone center`
+    : "Outside the affected evacuation zone";
+
+  return (
+    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-700">
+        <Radio size={30} aria-hidden="true" />
+      </div>
+
+      <div className="mt-6">
+        <p className="text-sm font-semibold uppercase tracking-wider text-amber-700">
+          Active Emergency Elsewhere
+        </p>
+
+        <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+          {disaster.title}
+        </h2>
+
+        <p className="mt-3 leading-7 text-slate-600">
+          An emergency is active in {disaster.affectedArea}, but your current
+          location is outside the configured evacuation radius.
+        </p>
+      </div>
+
+      <div className="mt-8 grid gap-3 sm:grid-cols-2">
+        <div className="rounded-2xl border border-slate-200 p-5">
+          <p className="text-sm text-slate-500">Current location</p>
+          <p className="mt-2 font-semibold text-slate-900">
+            {getLocationCopy(locationStatus)}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 p-5">
+          <p className="text-sm text-slate-500">Distance check</p>
+          <p className="mt-2 font-semibold text-slate-900">
+            {distanceLabel}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-5 flex items-start gap-3 rounded-2xl border border-slate-200 p-5">
+        <MapPin size={20} className="mt-0.5 shrink-0 text-teal-600" aria-hidden="true" />
+        <div>
+          <p className="font-medium text-slate-900">Monitoring remains active</p>
+          <p className="mt-1 text-sm leading-6 text-slate-500">
+            If your location changes or the affected radius expands, refresh to
+            run the location check again.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function getFamilyDetailsFromAIResult(aiResult) {
+  if (
+    aiResult?.needsReview ||
+    !Number.isInteger(aiResult?.peopleCount) ||
+    !Number.isInteger(aiResult?.adults) ||
+    !Number.isInteger(aiResult?.children) ||
+    !Number.isInteger(aiResult?.elderly) ||
+    aiResult.peopleCount !== aiResult.adults + aiResult.children + aiResult.elderly
+  ) {
+    return null;
+  }
+
+  return {
+    adults: aiResult.adults,
+    children: aiResult.children,
+    elderly: aiResult.elderly,
+    totalPeople: aiResult.peopleCount,
+    mobilityAssistance: Boolean(aiResult.mobilityAssistance),
+  };
+}
+
+function getEditableFamilyDetailsFromAIResult(aiResult) {
+  return {
+    adults: Number.isInteger(aiResult?.adults) && aiResult.adults > 0 ? aiResult.adults : 1,
+    children: Number.isInteger(aiResult?.children) ? aiResult.children : 0,
+    elderly: Number.isInteger(aiResult?.elderly) ? aiResult.elderly : 0,
+    mobilityAssistance: Boolean(aiResult?.mobilityAssistance),
+  };
+}
+
 export default function Citizen() {
   const [step, setStep] = useState("alert");
   const [familyDetails, setFamilyDetails] = useState(null);
@@ -230,6 +439,8 @@ export default function Citizen() {
   const [isReserving, setIsReserving] = useState(false);
   const [activeDisaster, setActiveDisaster] = useState(null);
   const [firestoreShelters, setFirestoreShelters] = useState([]);
+  const [userLocation, setUserLocation] = useState(null);
+  const [locationStatus, setLocationStatus] = useState("loading");
   const [dataLoading, setDataLoading] = useState(true);
   const [dataError, setDataError] = useState(null);
   const searchTimeoutRef = useRef(null);
@@ -239,6 +450,11 @@ export default function Citizen() {
 
   const hasActiveEmergency =
     activeDisaster && activeDisaster.status === "ACTIVE";
+  const emergencyAssessment = getEmergencyAssessment(activeDisaster, userLocation);
+  const isCriticalEmergency =
+    hasActiveEmergency && emergencyAssessment.status === "critical";
+  const isActiveEmergencyElsewhere =
+    hasActiveEmergency && emergencyAssessment.status === "elsewhere";
 
   const resetEmergencyFlow = useCallback(() => {
     if (searchTimeoutRef.current) {
@@ -254,17 +470,44 @@ export default function Citizen() {
     setIsReserving(false);
   }, []);
 
-  const loadFirestoreData = useCallback(async () => {
+  const loadCitizenData = useCallback(async () => {
     const requestId = loadRequestIdRef.current + 1;
     loadRequestIdRef.current = requestId;
 
     try {
       setDataLoading(true);
       setDataError(null);
+      setLocationStatus("loading");
 
-      const [disaster, shelterData] = await Promise.all([
+      const [disaster, shelterData, locationResult] = await Promise.all([
         getActiveDemoDisaster(),
         getShelters(),
+        getBrowserLocation()
+          .then((location) => ({
+            location,
+            status: "ready",
+          }))
+          .catch((error) => {
+            const status =
+              error?.code === 1
+                ? "denied"
+                : error?.message === "GEOLOCATION_UNSUPPORTED"
+                  ? "unsupported"
+                  : "fallback";
+
+            if (import.meta.env.DEV) {
+              console.warn("Using demo citizen location fallback:", {
+                status,
+                code: error?.code ?? "unknown",
+                message: error?.message ?? String(error),
+              });
+            }
+
+            return {
+              location: demoUserLocation,
+              status,
+            };
+          }),
       ]);
 
       if (!isMountedRef.current || requestId !== loadRequestIdRef.current) {
@@ -273,8 +516,12 @@ export default function Citizen() {
 
       setActiveDisaster(disaster);
       setFirestoreShelters(shelterData);
+      setUserLocation(locationResult.location);
+      setLocationStatus(locationResult.status);
 
-      if (!disaster) {
+      const assessment = getEmergencyAssessment(disaster, locationResult.location);
+
+      if (!disaster || assessment.status !== "critical") {
         resetEmergencyFlow();
       }
 
@@ -301,7 +548,7 @@ export default function Citizen() {
   useEffect(() => {
     isMountedRef.current = true;
     const loadTimer = setTimeout(() => {
-      loadFirestoreData();
+      loadCitizenData();
     }, 0);
 
     return () => {
@@ -313,7 +560,7 @@ export default function Citizen() {
         searchTimeoutRef.current = null;
       }
     };
-  }, [loadFirestoreData]);
+  }, [loadCitizenData]);
 
   const handleFamilySubmit = (details) => {
     setFamilyDetails(details);
@@ -343,13 +590,36 @@ export default function Citizen() {
         shelters: firestoreShelters,
         familyDetails: details,
         disasterType: activeDisaster?.type,
-        userLocation: demoUserLocation,
+        userLocation,
       });
 
       setAllocationResult(result);
       setStep("result");
       searchTimeoutRef.current = null;
     }, 900);
+  };
+
+  const handleAIConfirm = (aiResult) => {
+    const details = getFamilyDetailsFromAIResult(aiResult);
+
+    if (!details) {
+      setFamilyDetails(getEditableFamilyDetailsFromAIResult(aiResult));
+      setAllocationResult(null);
+      setReservation(null);
+      setReservationErrorCode(null);
+      setStep("family");
+      return;
+    }
+
+    handleFamilySubmit(details);
+  };
+
+  const handleAIEdit = (aiResult) => {
+    setFamilyDetails(getEditableFamilyDetailsFromAIResult(aiResult));
+    setAllocationResult(null);
+    setReservation(null);
+    setReservationErrorCode(null);
+    setStep("family");
   };
 
   const updateLocalShelterReservation = useCallback((reservationResult) => {
@@ -405,7 +675,7 @@ export default function Citizen() {
         shelterId: recommendedShelter.id,
         familyDetails,
         phone: reservationPhone,
-        userLocation: demoUserLocation,
+        userLocation,
       });
 
       if (!isMountedRef.current) {
@@ -437,7 +707,7 @@ export default function Citizen() {
   };
 
   const emergencyOverviewVisible =
-    !dataLoading && !dataError && hasActiveEmergency && step === "alert";
+    !dataLoading && !dataError && isCriticalEmergency && step === "alert";
 
   return (
     <main>
@@ -460,7 +730,7 @@ export default function Citizen() {
           </p>
         </header>
 
-        {!dataLoading && !dataError && hasActiveEmergency && step !== "alert" && (
+        {!dataLoading && !dataError && isCriticalEmergency && step !== "alert" && (
           <CitizenFlowProgress step={step} />
         )}
 
@@ -468,7 +738,7 @@ export default function Citizen() {
 
         {!dataLoading && dataError && (
           <CitizenErrorState
-            onRetry={loadFirestoreData}
+            onRetry={loadCitizenData}
             isRetrying={dataLoading}
           />
         )}
@@ -508,7 +778,7 @@ export default function Citizen() {
                   </p>
 
                   <p className="mt-1 font-semibold text-slate-900">
-                    Diamond Harbour, West Bengal
+                    {getLocationCopy(locationStatus)}
                   </p>
                 </div>
               </div>
@@ -534,6 +804,14 @@ export default function Citizen() {
           </section>
         )}
 
+        {!dataLoading && !dataError && isActiveEmergencyElsewhere && (
+          <ActiveEmergencyElsewhereCard
+            disaster={activeDisaster}
+            assessment={emergencyAssessment}
+            locationStatus={locationStatus}
+          />
+        )}
+
         {emergencyOverviewVisible && (
           <>
             <div className="citizen-command-layout">
@@ -554,7 +832,9 @@ export default function Citizen() {
 
               <CinematicEmergencyCard
                 disaster={activeDisaster}
-                onFindShelter={() => setStep("family")}
+                assessment={emergencyAssessment}
+                locationStatus={locationStatus}
+                onFindShelter={() => setStep("ai")}
               />
 
               <CycloneTrackingPanel disaster={activeDisaster} />
@@ -563,21 +843,33 @@ export default function Citizen() {
           </>
         )}
 
-        {!dataLoading && !dataError && hasActiveEmergency && step === "family" && (
+        {!dataLoading && !dataError && isCriticalEmergency && step === "family" && (
           <FamilyDetailsForm
             initialDetails={familyDetails}
-            onBack={() => setStep("alert")}
+            onBack={() => setStep("ai")}
             onSubmit={handleFamilySubmit}
           />
         )}
 
-        {!dataLoading && !dataError && hasActiveEmergency && step === "searching" && (
+        {!dataLoading && !dataError && isCriticalEmergency && step === "ai" && (
+          <AIEmergencyUnderstanding
+            onBack={() => setStep("alert")}
+            onManual={() => {
+              setFamilyDetails(null);
+              setStep("family");
+            }}
+            onConfirm={handleAIConfirm}
+            onEdit={handleAIEdit}
+          />
+        )}
+
+        {!dataLoading && !dataError && isCriticalEmergency && step === "searching" && (
           <ShelterSearchState />
         )}
 
         {!dataLoading &&
           !dataError &&
-          hasActiveEmergency &&
+          isCriticalEmergency &&
           step === "result" &&
           familyDetails &&
           allocationResult?.error === "NO_SHELTER_DATA" && (
@@ -586,7 +878,7 @@ export default function Citizen() {
 
         {!dataLoading &&
           !dataError &&
-          hasActiveEmergency &&
+          isCriticalEmergency &&
           step === "result" &&
           familyDetails &&
           allocationResult?.error !== "NO_SHELTER_DATA" && (
@@ -602,7 +894,7 @@ export default function Citizen() {
 
         {!dataLoading &&
           !dataError &&
-          hasActiveEmergency &&
+          isCriticalEmergency &&
           step === "reserved" &&
           reservation &&
           allocationResult?.recommendedShelter &&
@@ -616,7 +908,7 @@ export default function Citizen() {
 
         {!dataLoading &&
           !dataError &&
-          hasActiveEmergency &&
+          isCriticalEmergency &&
           step === "reservationError" && (
           <ReservationErrorCard
             errorCode={reservationErrorCode}
