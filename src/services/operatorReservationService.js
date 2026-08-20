@@ -401,9 +401,13 @@ export async function confirmReservationArrival(
         status: "ARRIVED",
         arrivedAt: serverTimestamp(),
       });
+      // `capacityUpdateCode` links this capacity change to the reservation
+      // moving to ARRIVED in the same transaction; Firestore rules reject a
+      // shelter capacity write that is not backed by its reservation.
       transaction.update(shelterRef, {
         reserved: shelter.reserved - peopleCount,
         occupied: shelter.occupied + peopleCount,
+        capacityUpdateCode: normalizedCode,
       });
 
       return {

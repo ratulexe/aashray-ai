@@ -6,6 +6,7 @@ import {
   Minus,
   Plus,
   Search,
+  TriangleAlert,
   UserRound,
   Users,
 } from "lucide-react";
@@ -30,6 +31,11 @@ function PersonCounter({ label, description, icon: Icon, value, onDecrease, onIn
                 {description}
               </p>
             )}
+            {value === null && (
+              <p className="mt-1 text-sm font-medium leading-5 text-amber-700">
+                Not provided. Set this number to continue.
+              </p>
+            )}
           </div>
         </div>
 
@@ -50,7 +56,7 @@ function PersonCounter({ label, description, icon: Icon, value, onDecrease, onIn
             className="flex h-12 items-center justify-center rounded-2xl bg-slate-50 text-xl font-bold tabular-nums text-slate-900"
             aria-live="polite"
           >
-            {value}
+            {value === null ? "—" : value}
           </output>
 
           <button
@@ -67,18 +73,53 @@ function PersonCounter({ label, description, icon: Icon, value, onDecrease, onIn
   );
 }
 
+// A category the citizen has not stated yet is held as `null` rather than being
+// defaulted to a number, so an unknown count can never be submitted as a fact.
+function getInitialCount(details, key, fallback) {
+  if (!details) {
+    return fallback;
+  }
+
+  const value = details[key];
+
+  return Number.isInteger(value) && value >= 0 ? value : null;
+}
+
+function stepCount(current, { minimum, direction }) {
+  if (current === null) {
+    return direction === "increase" ? Math.max(minimum, 1) : minimum;
+  }
+
+  return direction === "increase"
+    ? Math.min(20, current + 1)
+    : Math.max(minimum, current - 1);
+}
+
 export default function FamilyDetailsForm({ initialDetails, onBack, onSubmit }) {
-  const [adults, setAdults] = useState(initialDetails?.adults ?? 1);
-  const [children, setChildren] = useState(initialDetails?.children ?? 0);
-  const [elderly, setElderly] = useState(initialDetails?.elderly ?? 0);
+  const [adults, setAdults] = useState(() => getInitialCount(initialDetails, "adults", 1));
+  const [children, setChildren] = useState(() => getInitialCount(initialDetails, "children", 0));
+  const [elderly, setElderly] = useState(() => getInitialCount(initialDetails, "elderly", 0));
   const [mobilityAssistance, setMobilityAssistance] = useState(
     initialDetails?.mobilityAssistance ?? false,
   );
 
-  const totalPeople = adults + children + elderly;
+  const hasUnresolvedCounts = adults === null || children === null || elderly === null;
+  const totalPeople = hasUnresolvedCounts ? null : adults + children + elderly;
+  const expectedTotalPeople =
+    Number.isInteger(initialDetails?.expectedTotalPeople) &&
+    initialDetails.expectedTotalPeople > 0
+      ? initialDetails.expectedTotalPeople
+      : null;
+  const matchesExpectedTotal =
+    expectedTotalPeople === null || totalPeople === expectedTotalPeople;
+  const canSubmit = totalPeople !== null && totalPeople > 0 && matchesExpectedTotal;
 
   const handleSubmit = (event) => {
     event.preventDefault();
+
+    if (!canSubmit) {
+      return;
+    }
 
     onSubmit({
       adults,
@@ -127,8 +168,8 @@ export default function FamilyDetailsForm({ initialDetails, onBack, onSubmit }) 
           description="People age 18 and above"
           icon={UserRound}
           value={adults}
-          onDecrease={() => setAdults((current) => Math.max(1, current - 1))}
-          onIncrease={() => setAdults((current) => Math.min(20, current + 1))}
+          onDecrease={() => setAdults((current) => stepCount(current, { minimum: 1, direction: "decrease" }))}
+          onIncrease={() => setAdults((current) => stepCount(current, { minimum: 1, direction: "increase" }))}
         />
 
         <PersonCounter
@@ -136,8 +177,8 @@ export default function FamilyDetailsForm({ initialDetails, onBack, onSubmit }) 
           description="People under age 18"
           icon={Baby}
           value={children}
-          onDecrease={() => setChildren((current) => Math.max(0, current - 1))}
-          onIncrease={() => setChildren((current) => Math.min(20, current + 1))}
+          onDecrease={() => setChildren((current) => stepCount(current, { minimum: 0, direction: "decrease" }))}
+          onIncrease={() => setChildren((current) => stepCount(current, { minimum: 0, direction: "increase" }))}
         />
 
         <PersonCounter
@@ -145,8 +186,8 @@ export default function FamilyDetailsForm({ initialDetails, onBack, onSubmit }) 
           description="Older adults who may need additional support"
           icon={UserRound}
           value={elderly}
-          onDecrease={() => setElderly((current) => Math.max(0, current - 1))}
-          onIncrease={() => setElderly((current) => Math.min(20, current + 1))}
+          onDecrease={() => setElderly((current) => stepCount(current, { minimum: 0, direction: "decrease" }))}
+          onIncrease={() => setElderly((current) => stepCount(current, { minimum: 0, direction: "increase" }))}
         />
 
         <div className="rounded-2xl border border-slate-200 p-4 sm:p-5">
@@ -182,17 +223,53 @@ export default function FamilyDetailsForm({ initialDetails, onBack, onSubmit }) 
           <div className="flex items-center justify-between gap-4">
             <p className="font-semibold text-slate-700">Total People</p>
             <output className="text-3xl font-bold tabular-nums text-slate-900">
-              {totalPeople}
+              {totalPeople === null ? "—" : totalPeople}
             </output>
           </div>
+
+          {expectedTotalPeople !== null && (
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              AI understood {expectedTotalPeople} people in total. Assign every
+              person to a category so the counts match.
+            </p>
+          )}
         </div>
+
+        {hasUnresolvedCounts && (
+          <div
+            className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-700"
+            role="status"
+          >
+            <TriangleAlert size={20} className="mt-0.5 shrink-0" aria-hidden="true" />
+            <p className="m-0 text-sm leading-6">
+              Some family details are still unknown. Set every category before
+              searching for a shelter.
+            </p>
+          </div>
+        )}
+
+        {!hasUnresolvedCounts && !matchesExpectedTotal && (
+          <div
+            className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-700"
+            role="status"
+          >
+            <TriangleAlert size={20} className="mt-0.5 shrink-0" aria-hidden="true" />
+            <p className="m-0 text-sm leading-6">
+              These counts total {totalPeople} people, but {expectedTotalPeople}{" "}
+              people were described. Correct the numbers before continuing.
+            </p>
+          </div>
+        )}
 
         <button
           type="submit"
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-teal-700 px-5 py-4 font-semibold text-white transition hover:bg-teal-800 focus:outline-none focus:ring-4 focus:ring-teal-100"
+          disabled={!canSubmit}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-teal-700 px-5 py-4 font-semibold text-white transition hover:bg-teal-800 focus:outline-none focus:ring-4 focus:ring-teal-100 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:hover:bg-slate-300"
         >
           <Search size={20} aria-hidden="true" />
-          Find Shelter for {totalPeople} People
+          {canSubmit
+            ? `Find Shelter for ${totalPeople} People`
+            : "Complete Family Details"}
         </button>
       </form>
     </section>

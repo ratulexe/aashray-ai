@@ -2,15 +2,15 @@ import { Building2, Clock3, Info, Siren, Users } from 'lucide-react'
 import { AppHeader } from '../components/AppHeader.jsx'
 
 const incidents = [
-  ['Flooding near Yamuna Bazar', 'High', '68 citizens affected'],
-  ['Night shelter overflow', 'Medium', '22 referrals waiting'],
-  ['Medical assistance cluster', 'High', '9 urgent cases'],
+  ['Tidal surge near Diamond Harbour jetty', 'High', '68 citizens affected'],
+  ['Shelter overflow at Sarisha', 'Medium', '22 referrals waiting'],
+  ['Medical assistance cluster in Kakdwip', 'High', '9 urgent cases'],
 ]
 
 const zones = [
-  ['North Zone', 86, '142 beds occupied'],
-  ['Central Zone', 71, '88 beds occupied'],
-  ['East Zone', 64, '73 beds occupied'],
+  ['Diamond Harbour I', 86, '142 beds occupied'],
+  ['Falta Block', 71, '88 beds occupied'],
+  ['Kakdwip Block', 64, '73 beds occupied'],
 ]
 
 const metrics = [
@@ -28,13 +28,13 @@ export default function Authority() {
         <section className="authority-title-row" aria-labelledby="authority-heading">
           <div>
             <p className="eyebrow-label">Authority coordination</p>
-            <h1 id="authority-heading">City response overview</h1>
-            <p>Prioritize incidents, monitor shelter pressure, and coordinate support across affected zones.</p>
+            <h1 id="authority-heading">Diamond Harbour response overview</h1>
+            <p>Prioritize incidents, monitor shelter pressure, and coordinate support across the South 24 Parganas coastal blocks.</p>
           </div>
           <div className="authority-alert">
             <Siren size={23} aria-hidden="true" />
             <div>
-              <small>Active emergency · High severity</small>
+              <small>Cyclone alert · High severity</small>
               <strong>3 priority incidents</strong>
               <span>3 reported locations</span>
             </div>
