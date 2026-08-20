@@ -190,6 +190,15 @@ function getErrorStatus(error) {
   return Number.isInteger(statusNumber) ? statusNumber : null;
 }
 
+function logSafeAIError(error) {
+  console.error("AI emergency understanding failed:", {
+    name: error?.name ?? null,
+    message: error?.message ?? null,
+    status: getErrorStatus(error),
+    code: error?.code ?? null,
+  });
+}
+
 function createXAIClient() {
   const apiKey = process.env.XAI_API_KEY;
 
@@ -295,14 +304,7 @@ export default async function handler(request, response) {
       data,
     });
   } catch (error) {
-    if (process.env.NODE_ENV !== "production") {
-      console.error("AI emergency understanding failed:", {
-        name: error?.name,
-        message: error?.message,
-        status: getErrorStatus(error),
-        code: error?.code ?? null,
-      });
-    }
+    logSafeAIError(error);
 
     sendJson(response, 200, {
       ok: false,
