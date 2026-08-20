@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, onSnapshot } from "firebase/firestore";
 
 import { db } from "../lib/firebase";
 
@@ -101,4 +101,29 @@ export async function getShelters() {
     logFirestoreReadFailure("Failed to load shelters:", error);
     throw error;
   }
+}
+
+export function subscribeToShelters(onNext, onError) {
+  return onSnapshot(
+    collection(db, "shelters"),
+    (snapshot) => {
+      const shelters = snapshot.docs
+        .map(toShelter)
+        .filter((shelter) => {
+          const usable = isUsableShelter(shelter);
+
+          if (!usable && import.meta.env.DEV) {
+            console.warn("Skipping malformed shelter document:", shelter.id, shelter);
+          }
+
+          return usable;
+        });
+
+      onNext(shelters);
+    },
+    (error) => {
+      logFirestoreReadFailure("Failed to subscribe to shelters:", error);
+      onError?.(error);
+    },
+  );
 }

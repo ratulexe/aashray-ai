@@ -1,16 +1,17 @@
-import { Accessibility, Clock3, Info, LoaderCircle, Users } from 'lucide-react'
+import { Clock3, Info, LoaderCircle, Search, Users } from 'lucide-react'
 
 export default function IncomingReservations({
   reservations = [],
   isLoading = false,
   errorMessage = '',
   unavailableMessage = '',
+  onVerifyReservation,
 }) {
   const totalPeople = reservations.reduce((total, reservation) => total + reservation.peopleCount, 0)
   const hasReservations = reservations.length > 0
 
   return (
-    <section className="surface-card operator-card" aria-labelledby="incoming-heading">
+    <section className="surface-card operator-card incoming-card" aria-labelledby="incoming-heading">
       <div className="operator-card-heading">
         <div>
           <p className="operator-section-label">Arrival queue</p>
@@ -30,16 +31,27 @@ export default function IncomingReservations({
       {!isLoading && !errorMessage && !unavailableMessage && hasReservations && (
         <div className="incident-list">
           {reservations.map((reservation) => {
-            const family = reservation.family ?? {}
             return (
               <article className="incident-item" key={reservation.code}>
                 <span className="incident-item-icon"><Users size={19} aria-hidden="true" /></span>
                 <div>
                   <h3>{reservation.code}</h3>
-                  <p>{reservation.peopleCount} people · {family.adults} adults · {family.children} children · {family.elderly} elderly</p>
-                  {family.mobilityAssistance && <p><Accessibility size={14} aria-hidden="true" /> Mobility assistance required</p>}
+                  <p>
+                    Family: {reservation.peopleCount}
+                    {reservation.etaMinutes ? ` · ETA: ${reservation.etaMinutes} min` : ''}
+                  </p>
                 </div>
-                <span className="status-badge warning">{reservation.status}</span>
+                <div className="queue-actions">
+                  <span className="status-badge warning">{reservation.status}</span>
+                  <button
+                    type="button"
+                    className="button-secondary queue-verify-button"
+                    onClick={() => onVerifyReservation?.(reservation.code)}
+                  >
+                    <Search size={15} aria-hidden="true" />
+                    Verify
+                  </button>
+                </div>
               </article>
             )
           })}
