@@ -19,7 +19,8 @@ import CycloneTrackingPanel from "../components/citizen/CycloneTrackingPanel";
 import ReservationConfirmation from "../components/citizen/ReservationConfirmation";
 import ShelterRecommendation from "../components/citizen/ShelterRecommendation";
 import ShelterSearchState from "../components/citizen/ShelterSearchState";
-import { demoUserLocation } from "../data/demoData";
+import { activeDisaster as demoActiveDisaster, demoUserLocation } from "../data/demoData";
+import { shelters as demoShelters } from "../data/shelters";
 import { calculateDistanceKm } from "../lib/distance";
 import { findBestShelter } from "../lib/shelterAllocation";
 import { getActiveDemoDisaster } from "../services/disasterService";
@@ -344,6 +345,55 @@ function getBrowserLocation() {
   });
 }
 
+function getFirebaseErrorDetails(error) {
+  return {
+    code: error?.code ?? "unknown",
+    message: error?.message ?? String(error),
+  };
+}
+
+async function loadDisasterWithFallback() {
+  try {
+    return {
+      disaster: await getActiveDemoDisaster(),
+      source: "Firestore",
+    };
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn(
+        "Using bundled demo disaster because Firestore disaster data is unavailable:",
+        getFirebaseErrorDetails(error),
+      );
+    }
+
+    return {
+      disaster: demoActiveDisaster.status === "ACTIVE" ? demoActiveDisaster : null,
+      source: "Demo fallback",
+    };
+  }
+}
+
+async function loadSheltersWithFallback() {
+  try {
+    return {
+      shelters: await getShelters(),
+      source: "Firestore",
+    };
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn(
+        "Using bundled demo shelters because Firestore shelter data is unavailable:",
+        getFirebaseErrorDetails(error),
+      );
+    }
+
+    return {
+      shelters: demoShelters,
+      source: "Demo fallback",
+    };
+  }
+}
+
 function ActiveEmergencyElsewhereCard({ disaster, assessment, locationStatus }) {
   const distanceLabel = Number.isFinite(assessment.distanceKm)
     ? `${assessment.distanceKm.toFixed(1)} km from the affected zone center`
@@ -479,9 +529,9 @@ export default function Citizen() {
       setDataError(null);
       setLocationStatus("loading");
 
-      const [disaster, shelterData, locationResult] = await Promise.all([
-        getActiveDemoDisaster(),
-        getShelters(),
+      const [disasterResult, shelterResult, locationResult] = await Promise.all([
+        loadDisasterWithFallback(),
+        loadSheltersWithFallback(),
         getBrowserLocation()
           .then((location) => ({
             location,
@@ -514,6 +564,9 @@ export default function Citizen() {
         return;
       }
 
+      const disaster = disasterResult.disaster;
+      const shelterData = shelterResult.shelters;
+
       setActiveDisaster(disaster);
       setFirestoreShelters(shelterData);
       setUserLocation(locationResult.location);
@@ -526,7 +579,13 @@ export default function Citizen() {
       }
 
       if (import.meta.env.DEV && !dataSourceLoggedRef.current) {
-        console.info("Aashray AI data source: Firestore");
+        console.info(
+          "Aashray AI data source:",
+          disasterResult.source === "Firestore" &&
+            shelterResult.source === "Firestore"
+            ? "Firestore"
+            : "Demo fallback",
+        );
         dataSourceLoggedRef.current = true;
       }
     } catch (error) {

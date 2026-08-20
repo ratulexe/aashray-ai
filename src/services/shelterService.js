@@ -6,6 +6,21 @@ function isFiniteNumber(value) {
   return typeof value === "number" && Number.isFinite(value);
 }
 
+function isOfflineFirestoreError(error) {
+  return (
+    error?.code === "unavailable" ||
+    String(error?.message ?? "").toLowerCase().includes("client is offline")
+  );
+}
+
+function logFirestoreReadFailure(message, error) {
+  const log = isOfflineFirestoreError(error) ? console.warn : console.error;
+  log(message, {
+    code: error?.code ?? "unknown",
+    message: error?.message ?? String(error),
+  });
+}
+
 function isUsableShelter(shelter) {
   return (
     typeof shelter.id === "string" &&
@@ -59,7 +74,7 @@ export async function getShelterById(shelterId) {
 
     return shelter;
   } catch (error) {
-    console.error(`Failed to load shelter ${shelterId}:`, error);
+    logFirestoreReadFailure(`Failed to load shelter ${shelterId}:`, error);
     throw error;
   }
 }
@@ -80,7 +95,7 @@ export async function getShelters() {
         return usable;
       });
   } catch (error) {
-    console.error("Failed to load shelters:", error);
+    logFirestoreReadFailure("Failed to load shelters:", error);
     throw error;
   }
 }
