@@ -1,0 +1,7 @@
+{
+  "rewrites": [
+    { "source": "/citizen", "destination": "/index.html" },
+    { "source": "/authority", "destination": "/index.html" },
+    { "source": "/shelter", "destination": "/index.html" }
+  ]
+}
