@@ -1,8 +1,13 @@
 import {
+  collection,
   doc,
   getDoc,
+  limit,
+  onSnapshot,
+  query,
   runTransaction,
   serverTimestamp,
+  where,
 } from "firebase/firestore";
 
 import { db } from "../lib/firebase";
@@ -31,6 +36,8 @@ const reservationStatusMap = {
   EXPIRED: RESERVATION_VERIFICATION_STATUS.EXPIRED,
   CANCELLED: RESERVATION_VERIFICATION_STATUS.CANCELLED,
 };
+
+const RESERVED_STATUS = "RESERVED";
 
 export function normalizeReservationCode(code) {
   return typeof code === "string" ? code.trim().toUpperCase() : "";
@@ -74,6 +81,81 @@ function timestampToMillis(value) {
   }
 
   return null;
+}
+
+function toIncomingReservation(documentSnapshot) {
+  const reservation = {
+    id: documentSnapshot.id,
+    ...documentSnapshot.data(),
+  };
+
+  if (
+    reservation.code !== documentSnapshot.id ||
+    typeof reservation.shelterId !== "string" ||
+    typeof reservation.status !== "string" ||
+    reservation.status !== RESERVED_STATUS ||
+    !isPositiveInteger(reservation.peopleCount)
+  ) {
+    warnInvalidReservation("incoming queue document is incomplete", reservation);
+    return null;
+  }
+
+  return {
+    id: reservation.id,
+    code: reservation.code,
+    shelterId: reservation.shelterId,
+    shelterName: typeof reservation.shelterName === "string"
+      ? reservation.shelterName
+      : "",
+    peopleCount: reservation.peopleCount,
+    etaMinutes: isPositiveInteger(reservation.etaMinutes)
+      ? reservation.etaMinutes
+      : null,
+    status: reservation.status,
+    createdAtMs: timestampToMillis(reservation.createdAt),
+    expiresAtMs: timestampToMillis(reservation.expiresAt),
+  };
+}
+
+export function subscribeToIncomingReservations(shelterId, onNext, onError) {
+  if (typeof shelterId !== "string" || shelterId.trim() === "") {
+    onNext([]);
+    return () => {};
+  }
+
+  const reservationsQuery = query(
+    collection(db, "reservations"),
+    where("shelterId", "==", shelterId.trim()),
+    where("status", "==", RESERVED_STATUS),
+    limit(25),
+  );
+
+  return onSnapshot(
+    reservationsQuery,
+    (snapshot) => {
+      const reservations = snapshot.docs
+        .map(toIncomingReservation)
+        .filter((reservation) => (
+          reservation &&
+          reservation.expiresAtMs !== null &&
+          reservation.expiresAtMs > Date.now()
+        ))
+        .sort((a, b) => {
+          const aTime = a.createdAtMs ?? Number.MAX_SAFE_INTEGER;
+          const bTime = b.createdAtMs ?? Number.MAX_SAFE_INTEGER;
+          return aTime - bTime;
+        });
+
+      onNext(reservations);
+    },
+    (error) => {
+      console.error("Failed to subscribe to incoming reservations:", {
+        code: error?.code ?? "unknown",
+        message: error?.message ?? String(error),
+      });
+      onError?.(error);
+    },
+  );
 }
 
 function warnInvalidReservation(reason, reservation) {

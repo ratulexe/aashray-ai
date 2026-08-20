@@ -164,7 +164,9 @@ service cloud.firestore {
       // Phase-1 prototype: reservation creation is narrowly constrained but
       // still unauthenticated. Production must add role-based authorization.
       allow get: if true;
-      allow list: if false;
+      allow list: if request.query.limit <= 50
+        && resource.data.status == 'RESERVED'
+        && resource.data.shelterId is string;
       allow create: if isValidReservationCreate(reservationId);
       allow update: if isValidReservationArrivalUpdate(reservationId);
       allow delete: if false;

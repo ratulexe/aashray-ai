@@ -1,5 +1,5 @@
 import { FileQuestion, LoaderCircle, Search, ShieldCheck, TriangleAlert } from 'lucide-react'
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   RESERVATION_VERIFICATION_STATUS,
   normalizeReservationCode,
@@ -21,29 +21,87 @@ function getFailureState(status) {
   return states[status] ?? states[RESERVATION_VERIFICATION_STATUS.SYSTEM_ERROR]
 }
 
-export default function ReservationLookup({ shelterId, onVerified }) {
+function WrongShelterDetails({
+  code,
+  reservation,
+  currentShelterName,
+  onSwitchToAssignedShelter,
+}) {
+  const assignedShelterName = reservation?.shelterName || 'Assigned shelter'
+  const assignedShelterId = reservation?.shelterId
+  const canSwitch = Boolean(assignedShelterId && onSwitchToAssignedShelter)
+
+  return (
+    <div className="wrong-shelter-details">
+      <p>
+        <strong>{code}</strong> is reserved at:
+      </p>
+      <p className="wrong-shelter-name">
+        {assignedShelterName}
+        {assignedShelterId && <span>{assignedShelterId}</span>}
+      </p>
+      <p>
+        Current operator shelter:
+      </p>
+      <p className="wrong-shelter-name">{currentShelterName || 'Selected shelter'}</p>
+
+      {canSwitch && (
+        <button
+          type="button"
+          className="button-secondary wrong-shelter-switch"
+          onClick={() => onSwitchToAssignedShelter(assignedShelterId)}
+        >
+          Switch to Assigned Shelter
+        </button>
+      )}
+    </div>
+  )
+}
+
+export default function ReservationLookup({
+  shelterId,
+  shelterName,
+  verificationRequest,
+  onVerified,
+  onSwitchToAssignedShelter,
+}) {
   const [code, setCode] = useState('')
   const [lookupState, setLookupState] = useState({ type: 'idle', text: '' })
-  const isLoading = lookupState.type === 'loading'
+  const activeLookupState = lookupState.shelterId === shelterId
+    ? lookupState
+    : { type: 'idle', text: '' }
+  const isLoading = activeLookupState.type === 'loading'
 
-  async function handleSubmit(event) {
-    event.preventDefault()
-    const normalizedCode = normalizeReservationCode(code)
+  const runLookup = useCallback(async (rawCode) => {
+    const normalizedCode = normalizeReservationCode(rawCode)
     setCode(normalizedCode)
     onVerified(null)
-    setLookupState({ type: 'loading', text: 'Checking reservation…' })
+    setLookupState({ type: 'loading', text: 'Checking reservation…', shelterId })
 
     try {
       const result = await verifyReservationCode(normalizedCode, { expectedShelterId: shelterId })
       if (!result.ok) {
-        setLookupState(getFailureState(result.status))
+        setLookupState({
+          ...getFailureState(result.status),
+          code: result.code,
+          reservation: result.reservation ?? null,
+          shelterId,
+        })
         return
       }
-      setLookupState({ type: 'success', title: 'Reservation Verified', text: 'Review the family details below, then confirm arrival.' })
+      setLookupState({ type: 'success', title: 'Reservation Verified', text: 'Review the family details below, then confirm arrival.', shelterId })
       onVerified(result.reservation)
     } catch {
-      setLookupState(getFailureState(RESERVATION_VERIFICATION_STATUS.SYSTEM_ERROR))
+      setLookupState({
+        ...getFailureState(RESERVATION_VERIFICATION_STATUS.SYSTEM_ERROR),
+        shelterId,
+      })
     }
+  }, [onVerified, shelterId])
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    await runLookup(code)
   }
 
   function handleChange(event) {
@@ -52,17 +110,29 @@ export default function ReservationLookup({ shelterId, onVerified }) {
     onVerified(null)
   }
 
-  const messageTone = lookupState.type === 'success'
+  useEffect(() => {
+    if (!verificationRequest?.code) {
+      return undefined
+    }
+
+    const lookupTimer = setTimeout(() => {
+      runLookup(verificationRequest.code)
+    }, 0)
+
+    return () => clearTimeout(lookupTimer)
+  }, [runLookup, verificationRequest])
+
+  const messageTone = activeLookupState.type === 'success'
     ? 'success'
-    : lookupState.type === 'loading'
+    : activeLookupState.type === 'loading'
       ? 'info'
-      : lookupState.type === 'not-found'
+      : activeLookupState.type === 'not-found'
         ? 'warning'
         : 'error'
 
   return (
-    <section className="surface-card operator-card" aria-labelledby="lookup-heading">
-      <div className="operator-card-heading">
+    <section className="surface-card operator-card lookup-card" aria-labelledby="lookup-heading">
+      <div className="operator-card-heading lookup-card-heading">
         <span className="operator-icon"><ShieldCheck size={21} aria-hidden="true" /></span>
         <div>
           <p className="operator-section-label">Guest check-in</p>
@@ -85,8 +155,8 @@ export default function ReservationLookup({ shelterId, onVerified }) {
             autoComplete="off"
             spellCheck="false"
             disabled={isLoading}
-            aria-describedby={lookupState.type === 'idle' ? 'lookup-help' : 'lookup-message'}
-            aria-invalid={lookupState.type === 'error' || lookupState.type === 'not-found'}
+            aria-describedby={activeLookupState.type === 'idle' ? 'lookup-help' : 'lookup-message'}
+            aria-invalid={activeLookupState.type === 'error' || activeLookupState.type === 'not-found'}
           />
           <button className="button-primary" type="submit" disabled={isLoading}>
             {isLoading ? <LoaderCircle className="animate-spin" size={17} aria-hidden="true" /> : <Search size={17} aria-hidden="true" />}
@@ -95,15 +165,26 @@ export default function ReservationLookup({ shelterId, onVerified }) {
         </div>
         <p id="lookup-help" className="field-help">Codes are case-insensitive and will be formatted automatically.</p>
 
-        {lookupState.type !== 'idle' && (
-          <div id="lookup-message" className={`operator-message ${messageTone}`} role={lookupState.type === 'error' || lookupState.type === 'not-found' ? 'alert' : 'status'}>
-            {lookupState.type === 'success' && <ShieldCheck size={18} aria-hidden="true" />}
-            {lookupState.type === 'not-found' && <FileQuestion size={18} aria-hidden="true" />}
-            {lookupState.type === 'loading' && <LoaderCircle className="animate-spin" size={18} aria-hidden="true" />}
-            {lookupState.type === 'error' && <TriangleAlert size={18} aria-hidden="true" />}
+        {activeLookupState.type !== 'idle' && (
+          <div id="lookup-message" className={`operator-message ${messageTone}`} role={activeLookupState.type === 'error' || activeLookupState.type === 'not-found' ? 'alert' : 'status'}>
+            {activeLookupState.type === 'success' && <ShieldCheck size={18} aria-hidden="true" />}
+            {activeLookupState.type === 'not-found' && <FileQuestion size={18} aria-hidden="true" />}
+            {activeLookupState.type === 'loading' && <LoaderCircle className="animate-spin" size={18} aria-hidden="true" />}
+            {activeLookupState.type === 'error' && <TriangleAlert size={18} aria-hidden="true" />}
             <span>
-              {lookupState.title && <strong>{lookupState.title}</strong>}
-              {lookupState.text}
+              {activeLookupState.title && <strong>{activeLookupState.title}</strong>}
+              {activeLookupState.text}
+              {activeLookupState.type === 'error' &&
+                activeLookupState.reservation &&
+                activeLookupState.reservation.shelterId &&
+                activeLookupState.reservation.shelterId !== shelterId && (
+                  <WrongShelterDetails
+                    code={activeLookupState.code}
+                    reservation={activeLookupState.reservation}
+                    currentShelterName={shelterName}
+                    onSwitchToAssignedShelter={onSwitchToAssignedShelter}
+                  />
+                )}
             </span>
           </div>
         )}
