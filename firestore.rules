@@ -6,6 +6,14 @@ service cloud.firestore {
       return /databases/$(database)/documents/shelters/$(shelterId);
     }
 
+    function reservationPath(reservationId) {
+      return /databases/$(database)/documents/reservations/$(reservationId);
+    }
+
+    function isReservationCode(value) {
+      return value is string && value.matches('^ASH-[0-9]{4}$');
+    }
+
     function isNonNegativeInt(value) {
       return value is int && value >= 0;
     }
@@ -33,29 +41,56 @@ service cloud.firestore {
         && peopleCount == family.adults + family.children + family.elderly;
     }
 
-    function isValidShelterReservedUpdate() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reserved'])
+    // A shelter capacity change is only ever half of an atomic reservation
+    // write. `capacityUpdateCode` names the reservation that justifies the
+    // change, and that reservation must be created in the same commit.
+    function isValidShelterReservationCreateUpdate(shelterId, reservationCode) {
+      let reservation = getAfter(reservationPath(reservationCode)).data;
+
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'reserved',
+          'capacityUpdateCode'
+        ])
+        && isReservationCode(reservationCode)
+        && !exists(reservationPath(reservationCode))
+        && existsAfter(reservationPath(reservationCode))
+        && reservation.code == reservationCode
+        && reservation.shelterId == shelterId
+        && reservation.status == 'RESERVED'
+        && isPositiveInt(reservation.peopleCount)
         && isNonNegativeInt(resource.data.capacity)
         && isNonNegativeInt(resource.data.occupied)
         && isNonNegativeInt(resource.data.reserved)
         && isNonNegativeInt(request.resource.data.reserved)
-        && request.resource.data.reserved > resource.data.reserved
+        && request.resource.data.reserved
+          == resource.data.reserved + reservation.peopleCount
         && request.resource.data.reserved <= resource.data.capacity - resource.data.occupied;
     }
 
-    function isValidShelterArrivalCapacityUpdate() {
-      let arrivalCount = resource.data.reserved - request.resource.data.reserved;
+    function isValidShelterArrivalCapacityUpdate(shelterId, reservationCode) {
+      let reservationBefore = get(reservationPath(reservationCode)).data;
+      let arrivalCount = reservationBefore.peopleCount;
 
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'reserved',
-          'occupied'
+          'occupied',
+          'capacityUpdateCode'
         ])
+        && isReservationCode(reservationCode)
+        && exists(reservationPath(reservationCode))
+        && existsAfter(reservationPath(reservationCode))
+        && reservationBefore.code == reservationCode
+        && reservationBefore.shelterId == shelterId
+        && reservationBefore.status == 'RESERVED'
+        && getAfter(reservationPath(reservationCode)).data.status == 'ARRIVED'
+        && isPositiveInt(arrivalCount)
         && isNonNegativeInt(resource.data.capacity)
         && isNonNegativeInt(resource.data.occupied)
         && isNonNegativeInt(resource.data.reserved)
         && isNonNegativeInt(request.resource.data.occupied)
         && isNonNegativeInt(request.resource.data.reserved)
-        && isPositiveInt(arrivalCount)
+        && resource.data.reserved >= arrivalCount
+        && request.resource.data.reserved == resource.data.reserved - arrivalCount
         && request.resource.data.occupied == resource.data.occupied + arrivalCount
         && request.resource.data.occupied <= resource.data.capacity;
     }
@@ -113,7 +148,9 @@ service cloud.firestore {
         && exists(shelterPath(request.resource.data.shelterId))
         && getAfter(shelterPath(request.resource.data.shelterId)).data.reserved
           == get(shelterPath(request.resource.data.shelterId)).data.reserved
-            + request.resource.data.peopleCount;
+            + request.resource.data.peopleCount
+        && getAfter(shelterPath(request.resource.data.shelterId)).data.capacityUpdateCode
+          == request.resource.data.code;
     }
 
     function isValidReservationArrivalUpdate(reservationId) {
@@ -139,7 +176,9 @@ service cloud.firestore {
             - resource.data.peopleCount
         && getAfter(shelterPath(resource.data.shelterId)).data.occupied
           == get(shelterPath(resource.data.shelterId)).data.occupied
-            + resource.data.peopleCount;
+            + resource.data.peopleCount
+        && getAfter(shelterPath(resource.data.shelterId)).data.capacityUpdateCode
+          == resource.data.code;
     }
 
     match /disasters/{disasterId} {
@@ -150,13 +189,23 @@ service cloud.firestore {
     match /shelters/{shelterId} {
       allow read: if true;
 
-      // Phase-1 prototype: unauthenticated clients may only increase
-      // `reserved` as part of a narrowly constrained reservation flow, or move
-      // reserved guests into occupied capacity as part of arrival confirmation.
-      // Production must use Firebase Authentication, role-based authorization,
-      // App Check, and/or trusted backend logic.
-      allow update: if isValidShelterReservedUpdate()
-        || isValidShelterArrivalCapacityUpdate();
+      // Phase-1 prototype: unauthenticated clients may only change capacity as
+      // the shelter half of an atomic reservation create or arrival commit. The
+      // reservation named by `capacityUpdateCode` must be written in the same
+      // commit and must justify the exact delta, so capacity cannot be mutated
+      // on its own. Production must use Firebase Authentication, role-based
+      // authorization, App Check, and/or trusted backend logic.
+      allow update: if request.resource.data.keys().hasAll(['capacityUpdateCode'])
+        && (
+          isValidShelterReservationCreateUpdate(
+            shelterId,
+            request.resource.data.capacityUpdateCode
+          )
+          || isValidShelterArrivalCapacityUpdate(
+            shelterId,
+            request.resource.data.capacityUpdateCode
+          )
+        );
       allow create, delete: if false;
     }
 
@@ -177,9 +226,10 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Unused by the application. Closed to all client access so it cannot be
+    // read or written by unauthenticated clients.
     match /evacuationRequests/{requestId} {
-      allow read, create: if true;
-      allow update, delete: if false;
+      allow read, write: if false;
     }
   }
 }

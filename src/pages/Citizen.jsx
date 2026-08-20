@@ -670,23 +670,25 @@ function getFamilyDetailsFromAIResult(aiResult) {
   };
 }
 
-function getEditableFamilyDetailsFromAIResult(aiResult) {
+function getKnownCount(value) {
+  return Number.isInteger(value) && value >= 0 ? value : null;
+}
+
+// Categories the AI could not determine stay `null` so the citizen has to state
+// them explicitly. People the AI counted but could not categorise are never
+// folded into another category.
+function getReviewFamilyDraftFromAIResult(aiResult) {
   const peopleCount =
     Number.isInteger(aiResult?.peopleCount) && aiResult.peopleCount > 0
       ? aiResult.peopleCount
       : null;
-  const knownAdults = Number.isInteger(aiResult?.adults) ? aiResult.adults : 0;
-  const knownChildren = Number.isInteger(aiResult?.children) ? aiResult.children : 0;
-  const knownElderly = Number.isInteger(aiResult?.elderly) ? aiResult.elderly : 0;
-  const knownTotal = knownAdults + knownChildren + knownElderly;
-  const unassignedPeople =
-    peopleCount === null ? 0 : Math.max(0, peopleCount - knownTotal);
 
   return {
-    adults: Math.max(1, knownAdults + unassignedPeople),
-    children: knownChildren,
-    elderly: knownElderly,
+    adults: getKnownCount(aiResult?.adults),
+    children: getKnownCount(aiResult?.children),
+    elderly: getKnownCount(aiResult?.elderly),
     mobilityAssistance: Boolean(aiResult?.mobilityAssistance),
+    expectedTotalPeople: peopleCount,
   };
 }
 
@@ -922,7 +924,7 @@ export default function Citizen() {
     const details = getFamilyDetailsFromAIResult(aiResult);
 
     if (!details) {
-      setFamilyDetails(getEditableFamilyDetailsFromAIResult(aiResult));
+      setFamilyDetails(getReviewFamilyDraftFromAIResult(aiResult));
       setAllocationResult(null);
       setReservation(null);
       setReservationErrorCode(null);
@@ -938,7 +940,7 @@ export default function Citizen() {
       ...currentDraft,
       result: aiResult,
     }));
-    setFamilyDetails(getEditableFamilyDetailsFromAIResult(aiResult));
+    setFamilyDetails(getReviewFamilyDraftFromAIResult(aiResult));
     setAllocationResult(null);
     setReservation(null);
     setReservationErrorCode(null);

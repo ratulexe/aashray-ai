@@ -171,8 +171,12 @@ async function tryCreateReservation({
     const expiresAt = new Date(expiresAtMs);
     const expiresAtTimestamp = Timestamp.fromMillis(expiresAtMs);
 
+    // `capacityUpdateCode` links this capacity change to the reservation being
+    // created in the same transaction; Firestore rules reject a shelter
+    // capacity write that is not backed by its reservation.
     transaction.update(shelterRef, {
       reserved: reservedAfter,
+      capacityUpdateCode: code,
     });
 
     transaction.set(reservationRef, {
