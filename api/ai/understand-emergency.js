@@ -199,8 +199,21 @@ function logSafeAIError(error) {
   });
 }
 
+function normalizeApiKey(value) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value
+    .replace(/^\uFEFF/, "")
+    .trim()
+    .replace(/^["'](.*)["']$/, "$1")
+    .replace(/^\uFEFF/, "")
+    .trim();
+}
+
 function createXAIClient() {
-  const apiKey = process.env.XAI_API_KEY;
+  const apiKey = normalizeApiKey(process.env.XAI_API_KEY);
 
   if (!apiKey) {
     throw new Error("XAI_API_KEY is not configured.");
