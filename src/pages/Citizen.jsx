@@ -29,7 +29,7 @@ import { createShelterReservation } from "../services/reservationService";
 import { getShelters } from "../services/shelterService";
 
 const reservationPhone = "98XXXXXX12";
-const GEOLOCATION_TIMEOUT_MS = 10000;
+const GEOLOCATION_TIMEOUT_MS = 4000;
 const DEFAULT_DISASTER_CENTER = demoUserLocation;
 
 const citizenSteps = ["Family", "Shelter", "Reservation"];
@@ -338,9 +338,9 @@ function getBrowserLocation() {
         reject(error);
       },
       {
-        enableHighAccuracy: true,
+        enableHighAccuracy: false,
         timeout: GEOLOCATION_TIMEOUT_MS,
-        maximumAge: 60000,
+        maximumAge: 300000,
       },
     );
   });
@@ -351,6 +351,18 @@ function getFirebaseErrorDetails(error) {
     code: error?.code ?? "unknown",
     message: error?.message ?? String(error),
   };
+}
+
+function getLocationFailureStatus(error) {
+  if (error?.code === 1) {
+    return "denied";
+  }
+
+  if (error?.message === "GEOLOCATION_UNSUPPORTED") {
+    return "unsupported";
+  }
+
+  return "error";
 }
 
 async function loadDisasterWithFallback() {
@@ -411,6 +423,23 @@ function DemoLocationControl({
   isRetryingLocation,
 }) {
   const isDemo = locationMode === "demo";
+  const isDetecting = !isDemo && locationStatus === "loading";
+  const locationFailed =
+    !isDemo && ["denied", "unsupported", "error"].includes(locationStatus);
+  const title = isDemo
+    ? "Demo Location"
+    : isDetecting
+      ? "Detecting your location..."
+      : locationFailed
+        ? "Location is taking longer than expected."
+        : "Use Demo Location";
+  const description = isDemo
+    ? "Diamond Harbour evacuation scenario is active for this prototype demonstration."
+    : isDetecting
+      ? "This may take a few seconds. You can use the demo location any time for the prototype flow."
+      : locationFailed
+        ? "Retry GPS or use the demo location to simulate a resident inside the Diamond Harbour evacuation area."
+        : "Your current location is outside this evacuation zone. Use the demo location to simulate a resident inside the Diamond Harbour evacuation area.";
 
   return (
     <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5">
@@ -424,13 +453,11 @@ function DemoLocationControl({
           </div>
 
           <h3 className="mt-2 text-xl font-bold text-slate-900">
-            {isDemo ? "Demo Location" : "Use Demo Location"}
+            {title}
           </h3>
 
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-700">
-            {isDemo
-              ? "Diamond Harbour evacuation scenario is active for this prototype demonstration."
-              : "Your current location is outside this evacuation zone. Use the demo location to simulate a resident inside the Diamond Harbour evacuation area."}
+            {description}
           </p>
         </div>
 
@@ -447,15 +474,34 @@ function DemoLocationControl({
               {isRetryingLocation ? "Loading My Location" : "Return to My Location"}
             </button>
           ) : (
-            <button
-              type="button"
-              onClick={onUseDemoLocation}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-amber-600 px-4 text-sm font-semibold text-white transition hover:bg-amber-700 focus:outline-none focus:ring-4 focus:ring-amber-100"
-              aria-label="Use the simulated Diamond Harbour demo location"
-            >
-              <MapPin size={17} aria-hidden="true" />
-              Use Demo Location
-            </button>
+            <>
+              {locationFailed && (
+                <button
+                  type="button"
+                  onClick={onUseMyLocation}
+                  disabled={isRetryingLocation}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-amber-300 bg-white px-4 text-sm font-semibold text-amber-800 transition hover:bg-amber-100 focus:outline-none focus:ring-4 focus:ring-amber-100 disabled:cursor-not-allowed disabled:opacity-70"
+                  aria-label="Retry device GPS location detection"
+                >
+                  <RefreshCw
+                    size={17}
+                    className={isRetryingLocation ? "animate-spin" : ""}
+                    aria-hidden="true"
+                  />
+                  {isRetryingLocation ? "Retrying GPS" : "Retry GPS"}
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={onUseDemoLocation}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-amber-600 px-4 text-sm font-semibold text-white transition hover:bg-amber-700 focus:outline-none focus:ring-4 focus:ring-amber-100"
+                aria-label="Use the simulated Diamond Harbour demo location"
+              >
+                <MapPin size={17} aria-hidden="true" />
+                Use Demo Location
+              </button>
+            </>
           )}
 
           <p className="text-xs font-medium leading-5 text-amber-800">
@@ -547,6 +593,20 @@ function LocationUnavailableDuringEmergencyCard({
   onUseMyLocation,
   isRetryingLocation,
 }) {
+  const isDetecting = locationMode !== "demo" && locationStatus === "loading";
+  const locationFailed =
+    locationMode !== "demo" && ["denied", "unsupported", "error"].includes(locationStatus);
+  const title = isDetecting
+    ? "Detecting your location..."
+    : locationFailed
+      ? "Location is taking longer than expected."
+      : disaster.title;
+  const message = isDetecting
+    ? "This may take a few seconds. You can use the demo location while device GPS is still loading."
+    : locationFailed
+      ? "Retry GPS or use the demo location to continue the prototype evacuation flow."
+      : "Aashray AI needs your device GPS location to check whether this active emergency affects you.";
+
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-700">
@@ -559,12 +619,15 @@ function LocationUnavailableDuringEmergencyCard({
         </p>
 
         <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
-          {disaster.title}
+          {title}
         </h2>
 
         <p className="mt-3 leading-7 text-slate-600">
-          Aashray AI needs your device GPS location to check whether this
-          active emergency affects you.
+          {message}
+        </p>
+
+        <p className="mt-3 text-sm font-semibold text-slate-600">
+          Active alert: {disaster.title}
         </p>
       </div>
 
@@ -634,6 +697,7 @@ export default function Citizen() {
   const searchTimeoutRef = useRef(null);
   const isMountedRef = useRef(false);
   const loadRequestIdRef = useRef(0);
+  const locationRequestIdRef = useRef(0);
   const dataSourceLoggedRef = useRef(false);
 
   const hasActiveEmergency =
@@ -662,6 +726,53 @@ export default function Citizen() {
     setIsReserving(false);
   }, []);
 
+  const startDeviceLocationLookup = useCallback(async ({
+    switchToDevice = false,
+  } = {}) => {
+    const requestId = locationRequestIdRef.current + 1;
+    locationRequestIdRef.current = requestId;
+
+    try {
+      setIsRetryingLocation(true);
+      setLocationStatus("loading");
+
+      const location = await getBrowserLocation();
+
+      if (!isMountedRef.current || requestId !== locationRequestIdRef.current) {
+        return;
+      }
+
+      setDeviceLocation(location);
+      setLocationStatus("ready");
+
+      if (switchToDevice) {
+        setLocationMode("device");
+        resetEmergencyFlow();
+      }
+    } catch (error) {
+      if (!isMountedRef.current || requestId !== locationRequestIdRef.current) {
+        return;
+      }
+
+      const status = getLocationFailureStatus(error);
+
+      setDeviceLocation(null);
+      setLocationStatus(status);
+
+      if (import.meta.env.DEV) {
+        console.warn("Citizen device location unavailable:", {
+          status,
+          code: error?.code ?? "unknown",
+          message: error?.message ?? String(error),
+        });
+      }
+    } finally {
+      if (isMountedRef.current && requestId === locationRequestIdRef.current) {
+        setIsRetryingLocation(false);
+      }
+    }
+  }, [resetEmergencyFlow]);
+
   const handleUseDemoLocation = useCallback(() => {
     setLocationMode("demo");
     resetEmergencyFlow();
@@ -674,48 +785,8 @@ export default function Citizen() {
       return;
     }
 
-    try {
-      setIsRetryingLocation(true);
-      setLocationStatus("loading");
-
-      const location = await getBrowserLocation();
-
-      if (!isMountedRef.current) {
-        return;
-      }
-
-      setDeviceLocation(location);
-      setLocationStatus("ready");
-      setLocationMode("device");
-      resetEmergencyFlow();
-    } catch (error) {
-      if (!isMountedRef.current) {
-        return;
-      }
-
-      const status =
-        error?.code === 1
-          ? "denied"
-          : error?.message === "GEOLOCATION_UNSUPPORTED"
-            ? "unsupported"
-            : "error";
-
-      setDeviceLocation(null);
-      setLocationStatus(status);
-
-      if (import.meta.env.DEV) {
-        console.warn("Unable to restore device location:", {
-          status,
-          code: error?.code ?? "unknown",
-          message: error?.message ?? String(error),
-        });
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setIsRetryingLocation(false);
-      }
-    }
-  }, [deviceLocation, resetEmergencyFlow]);
+    await startDeviceLocationLookup({ switchToDevice: true });
+  }, [deviceLocation, resetEmergencyFlow, startDeviceLocationLookup]);
 
   const loadCitizenData = useCallback(async () => {
     const requestId = loadRequestIdRef.current + 1;
@@ -724,37 +795,10 @@ export default function Citizen() {
     try {
       setDataLoading(true);
       setDataError(null);
-      setLocationStatus("loading");
 
-      const [disasterResult, shelterResult, locationResult] = await Promise.all([
+      const [disasterResult, shelterResult] = await Promise.all([
         loadDisasterWithFallback(),
         loadSheltersWithFallback(),
-        getBrowserLocation()
-          .then((location) => ({
-            location,
-            status: "ready",
-          }))
-          .catch((error) => {
-            const status =
-              error?.code === 1
-                ? "denied"
-                : error?.message === "GEOLOCATION_UNSUPPORTED"
-                  ? "unsupported"
-                  : "error";
-
-            if (import.meta.env.DEV) {
-              console.warn("Citizen device location unavailable:", {
-                status,
-                code: error?.code ?? "unknown",
-                message: error?.message ?? String(error),
-              });
-            }
-
-            return {
-              location: null,
-              status,
-            };
-          }),
       ]);
 
       if (!isMountedRef.current || requestId !== loadRequestIdRef.current) {
@@ -766,13 +810,8 @@ export default function Citizen() {
 
       setActiveDisaster(disaster);
       setFirestoreShelters(shelterData);
-      setDeviceLocation(locationResult.location);
-      setLocationMode("device");
-      setLocationStatus(locationResult.status);
 
-      const assessment = getEmergencyAssessment(disaster, locationResult.location);
-
-      if (!disaster || assessment.status !== "critical") {
+      if (!disaster) {
         resetEmergencyFlow();
       }
 
@@ -786,6 +825,8 @@ export default function Citizen() {
         );
         dataSourceLoggedRef.current = true;
       }
+
+      startDeviceLocationLookup();
     } catch (error) {
       if (!isMountedRef.current || requestId !== loadRequestIdRef.current) {
         return;
@@ -800,7 +841,7 @@ export default function Citizen() {
         setDataLoading(false);
       }
     }
-  }, [resetEmergencyFlow]);
+  }, [resetEmergencyFlow, startDeviceLocationLookup]);
 
   useEffect(() => {
     isMountedRef.current = true;
