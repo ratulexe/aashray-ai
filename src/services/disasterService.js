@@ -2,6 +2,13 @@ import { doc, getDoc } from "firebase/firestore";
 
 import { db } from "../lib/firebase";
 
+function isOfflineFirestoreError(error) {
+  return (
+    error?.code === "unavailable" ||
+    String(error?.message ?? "").toLowerCase().includes("client is offline")
+  );
+}
+
 export async function getDisasterById(disasterId) {
   try {
     const ref = doc(db, "disasters", disasterId);
@@ -16,7 +23,13 @@ export async function getDisasterById(disasterId) {
       ...snapshot.data(),
     };
   } catch (error) {
-    console.error("Failed to load disaster:", error);
+    if (!isOfflineFirestoreError(error)) {
+      console.error("Failed to load disaster:", {
+        code: error?.code ?? "unknown",
+        message: error?.message ?? String(error),
+      });
+    }
+
     throw error;
   }
 }
