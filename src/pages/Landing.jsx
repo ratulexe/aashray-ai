@@ -1,119 +1,150 @@
 import {
   ArrowRight,
-  BedDouble,
   Building2,
-  MapPinned,
+  CheckCircle2,
+  ClipboardCheck,
+  MapPin,
+  Navigation,
   Radio,
+  Route,
   ShieldCheck,
   Users,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { AppHeader } from '../components/AppHeader.jsx'
 
-const roles = [
+const roleCards = [
   {
     title: 'Citizen',
     path: '/citizen',
     icon: Users,
-    text: 'Find verified shelters, request help, and share your current needs.',
-    meta: 'Open citizen access',
-  },
-  {
-    title: 'Authority',
-    path: '/authority',
-    icon: ShieldCheck,
-    text: 'Track city-wide demand, incident signals, and priority response lanes.',
-    meta: 'Command overview',
+    description: 'Find a suitable shelter, reserve space for your family, and receive a verifiable evacuation code.',
+    action: 'Start citizen flow',
+    steps: ['Share family needs', 'Review a safe shelter match', 'Reserve spaces'],
   },
   {
     title: 'Shelter Operator',
     path: '/shelter',
     icon: Building2,
-    text: 'Update capacity, accept referrals, and coordinate essentials in real time.',
-    meta: 'Shelter workspace',
+    description: 'Verify incoming reservations, confirm arrivals, and keep capacity information current.',
+    action: 'Open operator dashboard',
+    steps: ['View live capacity', 'Verify an ASH code', 'Confirm safe arrival'],
+  },
+  {
+    title: 'Authority',
+    path: '/authority',
+    icon: ShieldCheck,
+    description: 'Monitor evacuation demand and shelter readiness across affected areas from one clear view.',
+    action: 'View authority dashboard',
+    steps: ['Assess active incidents', 'Track zone capacity', 'Prioritize support'],
   },
 ]
 
-const metrics = [
-  ['128', 'active shelter beds'],
-  ['42 min', 'average placement time'],
-  ['19', 'field requests monitored'],
+const responseSteps = [
+  ['01', 'Understand the need', 'Capture family size and accessibility requirements.'],
+  ['02', 'Find a suitable shelter', 'Compare safety, capacity, distance, and route access.'],
+  ['03', 'Reserve and verify', 'Issue a unique ASH code for shelter check-in.'],
+  ['04', 'Confirm arrival', 'Update shelter occupancy once the family arrives.'],
 ]
 
-function Landing() {
+export default function Landing() {
   return (
-    <main className="page landing-page">
-      <nav className="topbar" aria-label="Primary navigation">
-        <Link className="brand" to="/">
-          <span className="brand-mark">A</span>
-          <span>Aashray AI</span>
-        </Link>
-        <div className="nav-links">
-          <Link to="/citizen">Citizen</Link>
-          <Link to="/authority">Authority</Link>
-          <Link to="/shelter">Shelter</Link>
-        </div>
-      </nav>
+    <main className="landing-page">
+      <AppHeader />
 
-      <section className="landing-hero">
-        <div className="hero-copy">
-          <p className="eyebrow">Coordinated shelter access</p>
-          <h1>Aashray AI</h1>
-          <p className="hero-text">
-            A role-based emergency shelter network that connects people seeking
-            safe accommodation with civic teams and verified shelter operators.
+      <section className="page-container landing-hero" aria-labelledby="landing-heading">
+        <div className="landing-hero-copy">
+          <p className="eyebrow-label">Coordinated shelter access</p>
+          <h1 id="landing-heading">
+            A clear route to safety.
+            <span>When every minute matters.</span>
+          </h1>
+          <p>
+            Aashray AI connects families with suitable shelters using current
+            capacity, accessibility, and route information—then helps response
+            teams coordinate each safe arrival.
           </p>
-          <div className="hero-actions" aria-label="Choose your workspace">
-            {roles.map((role) => (
-              <Link className="primary-action" key={role.path} to={role.path}>
-                <role.icon size={20} aria-hidden="true" />
-                <span>{role.title}</span>
-                <ArrowRight size={18} aria-hidden="true" />
-              </Link>
-            ))}
+
+          <div className="landing-actions">
+            <Link className="button-primary" to="/citizen">
+              <Navigation size={19} aria-hidden="true" />
+              Find a safe shelter
+              <ArrowRight size={18} aria-hidden="true" />
+            </Link>
+            <Link className="button-secondary" to="/shelter">
+              <Building2 size={18} aria-hidden="true" />
+              Shelter operator
+            </Link>
+          </div>
+
+          <div className="landing-trust" aria-label="Platform safeguards">
+            <span><CheckCircle2 size={16} aria-hidden="true" /> Verifiable reservation workflow</span>
+            <span><CheckCircle2 size={16} aria-hidden="true" /> Accessibility-aware placement</span>
           </div>
         </div>
 
-        <div className="signal-panel" aria-label="Live coordination snapshot">
-          <div className="map-card">
-            <div className="map-grid" />
-            <span className="map-pin pin-one">
-              <MapPinned size={18} aria-hidden="true" />
-            </span>
-            <span className="map-pin pin-two">
-              <BedDouble size={18} aria-hidden="true" />
-            </span>
-            <span className="map-pin pin-three">
-              <Radio size={18} aria-hidden="true" />
-            </span>
+        <article className="surface-card hero-safety-card" aria-label="How Aashray AI coordinates a safe route">
+          <div className="hero-safety-top">
+            <span className="hero-safety-icon"><Route size={25} aria-hidden="true" /></span>
+            <span className="status-badge success"><Radio size={13} aria-hidden="true" /> System ready</span>
           </div>
-          <div className="signal-list">
-            {metrics.map(([value, label]) => (
-              <div className="signal-item" key={label}>
-                <strong>{value}</strong>
-                <span>{label}</span>
-              </div>
-            ))}
+          <h2>From location to confirmed shelter</h2>
+          <p>Critical details stay visible throughout the evacuation journey.</p>
+          <div className="hero-route" aria-hidden="true">
+            <span className="route-point start"><MapPin size={17} /></span>
+            <span className="hero-route-label start">Family location</span>
+            <span className="route-point end"><ShieldCheck size={17} /></span>
+            <span className="hero-route-label end">Verified shelter</span>
           </div>
+          <div className="hero-safety-footer">
+            <div><strong>Live</strong><span>capacity signals</span></div>
+            <div><strong>ASH</strong><span>reservation code</span></div>
+            <div><strong>3 roles</strong><span>one response flow</span></div>
+          </div>
+        </article>
+      </section>
+
+      <section className="page-container landing-section" aria-labelledby="roles-heading">
+        <div className="section-heading">
+          <p className="eyebrow-label">One response network</p>
+          <h2 id="roles-heading">A focused workspace for every role</h2>
+          <p>Each screen prioritizes the next decision without hiding the context people need under pressure.</p>
+        </div>
+        <div className="role-grid">
+          {roleCards.map(({ title, path, icon: Icon, description, action, steps }) => (
+            <article className="surface-card role-option" key={path}>
+              <span className="role-option-icon"><Icon size={23} aria-hidden="true" /></span>
+              <h3>{title}</h3>
+              <p>{description}</p>
+              <ul>
+                {steps.map((step) => <li key={step}><CheckCircle2 size={15} aria-hidden="true" />{step}</li>)}
+              </ul>
+              <Link className="button-secondary" to={path}>{action}<ArrowRight size={17} aria-hidden="true" /></Link>
+            </article>
+          ))}
         </div>
       </section>
 
-      <section className="role-grid" aria-label="Aashray AI workspaces">
-        {roles.map((role) => (
-          <Link className="role-card" key={role.path} to={role.path}>
-            <span className="card-icon">
-              <role.icon size={24} aria-hidden="true" />
-            </span>
-            <span className="role-meta">{role.meta}</span>
-            <h2>{role.title}</h2>
-            <p>{role.text}</p>
-            <span className="card-link">
-              Open page <ArrowRight size={17} aria-hidden="true" />
-            </span>
-          </Link>
-        ))}
+      <section className="page-container landing-section" aria-labelledby="workflow-heading">
+        <div className="section-heading">
+          <p className="eyebrow-label">Alert to arrival</p>
+          <h2 id="workflow-heading">A simple, traceable evacuation flow</h2>
+        </div>
+        <div className="workflow-grid">
+          {responseSteps.map(([number, title, description]) => (
+            <article className="surface-card workflow-step" key={number}>
+              <span>{number}</span>
+              <h3>{title}</h3>
+              <p>{description}</p>
+            </article>
+          ))}
+        </div>
       </section>
+
+      <footer className="page-container app-footer">
+        <span>Aashray AI · Disaster evacuation and shelter coordination</span>
+        <span><ClipboardCheck size={14} aria-hidden="true" /> Prototype demonstration</span>
+      </footer>
     </main>
   )
 }
-
-export default Landing

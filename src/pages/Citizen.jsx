@@ -1,17 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  CheckCircle2,
   CircleAlert,
   LoaderCircle,
   ShieldCheck,
   TriangleAlert,
   MapPin,
-  Clock3,
   Navigation,
   Radio,
   RefreshCw,
 } from "lucide-react";
 
+import { AppHeader } from "../components/AppHeader";
 import FamilyDetailsForm from "../components/citizen/FamilyDetailsForm";
+import CinematicEmergencyCard from "../components/citizen/CinematicEmergencyCard";
+import CycloneTrackingPanel from "../components/citizen/CycloneTrackingPanel";
 import ReservationConfirmation from "../components/citizen/ReservationConfirmation";
 import ShelterRecommendation from "../components/citizen/ShelterRecommendation";
 import ShelterSearchState from "../components/citizen/ShelterSearchState";
@@ -22,6 +25,36 @@ import { createShelterReservation } from "../services/reservationService";
 import { getShelters } from "../services/shelterService";
 
 const reservationPhone = "98XXXXXX12";
+
+const citizenSteps = ["Family", "Shelter", "Reservation"];
+
+function CitizenFlowProgress({ step }) {
+  const currentStep = step === "family" ? 0 : step === "searching" || step === "result" ? 1 : 2;
+
+  return (
+    <nav className="citizen-progress" aria-label="Evacuation progress">
+      <ol>
+        {citizenSteps.map((label, index) => {
+          const isComplete = index < currentStep;
+          const isCurrent = index === currentStep;
+
+          return (
+            <li
+              key={label}
+              className={isComplete ? "complete" : isCurrent ? "current" : ""}
+              aria-current={isCurrent ? "step" : undefined}
+            >
+              <span aria-hidden="true">
+                {isComplete ? <CheckCircle2 size={15} /> : index + 1}
+              </span>
+              {label}
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}
 
 function getReservationErrorCopy(errorCode) {
   if (errorCode === "insufficient-capacity") {
@@ -403,22 +436,33 @@ export default function Citizen() {
     }
   };
 
-  return (
-    <main className="min-h-screen bg-slate-50 px-4 py-6 sm:px-6">
-      <div className="mx-auto max-w-2xl">
+  const emergencyOverviewVisible =
+    !dataLoading && !dataError && hasActiveEmergency && step === "alert";
 
-        {/* Header */}
-        <header className="mb-8">
-          <div className="flex items-center gap-3"><div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-                Aashray AI
-              </h1>
-              <p className="text-sm text-slate-500">
-                Disaster Evacuation & Shelter Coordination
-              </p>
-            </div>
-          </div>
+  return (
+    <main>
+      <AppHeader />
+      <div className="citizen-page">
+        <div className="page-container">
+        <header
+          className={`citizen-cinematic-header ${
+            emergencyOverviewVisible ? "" : "citizen-header-compact"
+          }`}
+        >
+          <p className="citizen-cinematic-kicker">
+            People · Shelters · Safer Tomorrow
+          </p>
+          <h1>
+            Aashray <span>AI</span>
+          </h1>
+          <p className="citizen-cinematic-subtitle">
+            Disaster Evacuation &amp; Shelter Coordination
+          </p>
         </header>
+
+        {!dataLoading && !dataError && hasActiveEmergency && step !== "alert" && (
+          <CitizenFlowProgress step={step} />
+        )}
 
         {dataLoading && <CitizenLoadingState />}
 
@@ -490,105 +534,33 @@ export default function Citizen() {
           </section>
         )}
 
-        {/* EMERGENCY STATE */}
-        {!dataLoading && !dataError && hasActiveEmergency && step === "alert" && (
-          <section className="overflow-hidden rounded-3xl border border-red-200 bg-white shadow-sm">
+        {emergencyOverviewVisible && (
+          <>
+            <div className="citizen-command-layout">
+              <aside className="citizen-atmospheric-copy" aria-label="Response values">
+                <div>
+                  <strong>Early Warnings</strong>
+                  <span>Signals that help families act sooner.</span>
+                </div>
+                <div>
+                  <strong>Safer Journeys</strong>
+                  <span>Routes assessed for real evacuation needs.</span>
+                </div>
+                <div>
+                  <strong>Stronger Communities</strong>
+                  <span>One shared view of shelter readiness.</span>
+                </div>
+              </aside>
 
-            {/* Alert Header */}
-            <div className="bg-red-50 p-6 sm:p-8">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-100 text-red-600">
-                <TriangleAlert size={30} />
-              </div>
+              <CinematicEmergencyCard
+                disaster={activeDisaster}
+                onFindShelter={() => setStep("family")}
+              />
 
-              <p className="mt-6 text-sm font-semibold uppercase tracking-wider text-red-600">
-                Emergency Alert
-              </p>
-
-              <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
-                {activeDisaster.title}
-              </h2>
-
-              <p className="mt-3 max-w-xl leading-7 text-slate-700">
-                {activeDisaster.message}
-              </p>
+              <CycloneTrackingPanel disaster={activeDisaster} />
             </div>
 
-            {/* Disaster Details */}
-            <div className="p-6 sm:p-8">
-              <div className="grid gap-4 sm:grid-cols-2">
-
-                {/* Risk */}
-                <div className="rounded-2xl border border-slate-200 p-5">
-                  <div className="flex items-center gap-3">
-                    <TriangleAlert
-                      size={20}
-                      className="text-red-600"
-                    />
-
-                    <p className="text-sm text-slate-500">
-                      Risk Level
-                    </p>
-                  </div>
-
-                  <p className="mt-3 text-lg font-bold text-red-600">
-                    {activeDisaster.severity}
-                  </p>
-                </div>
-
-                {/* Area */}
-                <div className="rounded-2xl border border-slate-200 p-5">
-                  <div className="flex items-center gap-3">
-                    <MapPin
-                      size={20}
-                      className="text-slate-600"
-                    />
-
-                    <p className="text-sm text-slate-500">
-                      Affected Area
-                    </p>
-                  </div>
-
-                  <p className="mt-3 font-semibold text-slate-900">
-                    {activeDisaster.affectedArea}
-                  </p>
-                </div>
-
-                {/* Duration */}
-                <div className="rounded-2xl border border-slate-200 p-5 sm:col-span-2">
-                  <div className="flex items-center gap-3">
-                    <Clock3
-                      size={20}
-                      className="text-slate-600"
-                    />
-
-                    <p className="text-sm text-slate-500">
-                      Expected Duration
-                    </p>
-                  </div>
-
-                  <p className="mt-3 font-semibold text-slate-900">
-                    Approximately{" "}
-                    {activeDisaster.expectedDurationHours} hours
-                  </p>
-                </div>
-              </div>
-
-              {/* CTA */}
-              <button
-                type="button"
-                onClick={() => setStep("family")}
-                className="mt-7 flex w-full items-center justify-center gap-2 rounded-2xl bg-red-600 px-5 py-4 font-semibold text-white transition hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-red-100"
-              >
-                <Navigation size={20} />
-                Find Safe Shelter
-              </button>
-
-              <p className="mt-3 text-center text-xs leading-5 text-slate-500">
-                Aashray AI will evaluate shelters based on safety, available
-                capacity, current location, accessibility and route conditions.
-              </p>
-            </div>
-          </section>
+          </>
         )}
 
         {!dataLoading && !dataError && hasActiveEmergency && step === "family" && (
@@ -621,6 +593,7 @@ export default function Citizen() {
           <ShelterRecommendation
             shelter={allocationResult?.recommendedShelter ?? null}
             familyDetails={familyDetails}
+            disasterType={activeDisaster?.type}
             onBack={() => setStep("family")}
             onReserve={handleReserve}
             isReserving={isReserving}
@@ -660,6 +633,7 @@ export default function Citizen() {
         <p className="sr-only" aria-live="polite">
           {familyDetails ? "Family details saved" : ""}
         </p>
+        </div>
       </div>
     </main>
   );

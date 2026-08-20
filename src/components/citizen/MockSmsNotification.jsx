@@ -18,10 +18,10 @@ export default function MockSmsNotification({ phone, reservation, shelter }) {
 
         <div>
           <p className="text-sm font-semibold uppercase tracking-wider text-teal-700">
-            SMS Simulation
+            Demo SMS Preview
           </p>
           <h3 className="mt-2 text-xl font-bold text-slate-900">
-            SMS Notification
+            Mock SMS — Prototype
           </h3>
         </div>
       </div>
@@ -42,7 +42,7 @@ export default function MockSmsNotification({ phone, reservation, shelter }) {
 
       <div className="mt-5 flex items-center gap-3 text-teal-700">
         <CheckCircle2 size={20} aria-hidden="true" />
-        <p className="font-semibold">SMS sent successfully</p>
+        <p className="font-semibold">Preview generated successfully</p>
       </div>
     </section>
   );

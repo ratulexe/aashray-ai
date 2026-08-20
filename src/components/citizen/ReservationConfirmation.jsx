@@ -1,12 +1,15 @@
 import {
+  Check,
   CheckCircle2,
   Clock3,
+  Copy,
   House,
   MapPin,
   ShieldCheck,
   TicketCheck,
   Users,
 } from "lucide-react";
+import { useState } from "react";
 
 import MockSmsNotification from "./MockSmsNotification";
 
@@ -32,10 +35,20 @@ export default function ReservationConfirmation({
   shelter,
   familyDetails,
 }) {
+  const [copyState, setCopyState] = useState("idle");
   const distanceKm = reservation.distanceKm ?? shelter.distanceKm;
   const distanceLabel = Number.isFinite(distanceKm)
     ? `${distanceKm.toFixed(1)} km`
     : "Not available";
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(reservation.id);
+      setCopyState("copied");
+    } catch {
+      setCopyState("error");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -57,6 +70,10 @@ export default function ReservationConfirmation({
             <MapPin size={19} className="shrink-0" aria-hidden="true" />
             {reservation.shelterLocation}
           </p>
+
+          <p className="mt-4 font-medium leading-7 text-slate-700">
+            Your {reservation.peopleCount} spaces are reserved at {reservation.shelterName}.
+          </p>
         </div>
 
         <div className="space-y-6 p-6 sm:p-8">
@@ -73,9 +90,24 @@ export default function ReservationConfirmation({
               {reservation.id}
             </p>
 
+            <button
+              type="button"
+              className="code-copy-button"
+              onClick={handleCopy}
+              aria-label={`Copy evacuation code ${reservation.id}`}
+            >
+              {copyState === "copied" ? <Check size={18} aria-hidden="true" /> : <Copy size={18} aria-hidden="true" />}
+              {copyState === "copied" ? "Copied" : "Copy Code"}
+            </button>
+
             <p className="mt-3 text-sm font-medium leading-6 text-slate-600">
               Show this code at the shelter when you arrive.
             </p>
+            {copyState === "error" && (
+              <p className="mt-2 text-sm text-amber-700" role="alert">
+                Copy was unavailable. Select the code and copy it manually.
+              </p>
+            )}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -104,7 +136,7 @@ export default function ReservationConfirmation({
                 <ShieldCheck size={20} className="text-teal-700" aria-hidden="true" />
                 <p className="text-sm text-slate-500">Status</p>
               </div>
-              <p className="mt-3 font-semibold text-slate-900">Reserved</p>
+              <span className="status-badge info mt-3">Reserved</span>
             </div>
 
             <div className="rounded-2xl border border-slate-200 p-5">
@@ -113,7 +145,7 @@ export default function ReservationConfirmation({
                 <p className="text-sm text-slate-500">Estimated Travel Time</p>
               </div>
               <p className="mt-3 font-semibold text-slate-900">
-                {reservation.etaMinutes} min
+                Approx. {reservation.etaMinutes} min
               </p>
             </div>
           </div>
@@ -151,8 +183,8 @@ export default function ReservationConfirmation({
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 p-5">
-            <h3 className="font-bold text-slate-900">Shelter Capacity</h3>
+          <details className="disclosure-panel">
+            <summary>Shelter capacity details</summary>
 
             <div className="mt-4 grid gap-3">
               <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-3">
@@ -178,7 +210,7 @@ export default function ReservationConfirmation({
               Occupied capacity is unchanged until arrival is verified at the
               shelter.
             </p>
-          </div>
+          </details>
 
           <p className="text-center text-sm leading-6 text-slate-500">
             Keep this code available. The shelter operator will verify it when
