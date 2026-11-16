@@ -22,9 +22,10 @@ This is a thin slice of the real architecture, not a throwaway mock-up.
 - [x] Demo screen inside the console: coordinator, approver, operator, rescue desk + three phone simulators
 - [x] Crowd simulator, demo clock (fast-forward), reset, guided tour
 - [x] `npm run demo` one-command start; DEMO banner everywhere
-- [ ] Hosted copy on a free tier; 3-minute walkthrough video
+- [x] Hosting setup for free tiers: Vercel (apps) + Render (API) + Neon (database) — [HOSTING.md](HOSTING.md)
+- [ ] Hosted copy live; 3-minute walkthrough video
 
-**Status:** built and verified end to end in the browser (Nov 2026). Remaining: hosted copy and video.
+**Status:** built and verified end to end in the browser (Nov 2026). Remaining: going live on the free tiers, and the video.
 
 **Show it to:** teachers, friends in tech, a local NGO. Collect feedback before Phase 1.
 

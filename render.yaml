@@ -1,0 +1,37 @@
+# Render Blueprint for the hosted HOPE demo API (free tier).
+# Setup steps: docs/HOSTING.md
+#
+# The database is an external PostgreSQL + PostGIS (Neon free tier): the
+# in-process PGlite needs ~700 MB, more than the free instance's 512 MB.
+# The free instance sleeps after ~15 minutes without traffic; on every start
+# the demo is reset to the same fictional data, so each audience starts at step 1.
+services:
+  - type: web
+    name: hope-demo-api
+    runtime: node
+    plan: free
+    region: singapore
+    branch: main
+    buildCommand: npm ci --include=dev
+    startCommand: npm run start -w @hope/api
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: HOPE_MODE
+        value: demo
+      - key: HOST
+        value: 0.0.0.0
+      - key: HOPE_RESET_ON_START
+        value: "true"
+      - key: COOKIE_SECURE
+        value: "true"
+      # Filled in on Render: the Neon connection string (direct, not pooled)
+      # and the two Vercel sites.
+      - key: DATABASE_URL
+        sync: false
+      - key: CITIZEN_ORIGIN
+        sync: false
+      - key: CONSOLE_ORIGIN
+        sync: false

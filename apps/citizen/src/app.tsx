@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Navigate, Route, Routes, useSearchParams } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@hope/ui/components/skeleton";
-import { api, ApiError } from "./api";
+import { api, ApiError, setDemoToken } from "./api";
 import { useMe } from "./hooks";
 import { useI18n } from "./i18n";
 import { HomeScreen } from "./screens/home";
@@ -26,7 +26,8 @@ function usePersonaLogin() {
   useEffect(() => {
     if (!persona || started.current) return;
     started.current = true;
-    api("/demo/login", { body: { persona } })
+    api<{ token?: string }>("/demo/login", { body: { persona } })
+      .then((r) => setDemoToken(r.token ?? null))
       .catch(() => undefined)
       .finally(async () => {
         params.delete("persona");

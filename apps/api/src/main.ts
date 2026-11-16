@@ -1,4 +1,4 @@
-import { createDb, migrate } from "@hope/db";
+import { createDb, migrate, resetSchema } from "@hope/db";
 import { seedDemo } from "@hope/db/seed";
 import { createApp, loadConfig, type App } from "./context";
 import { buildServer } from "./server";
@@ -11,6 +11,8 @@ const db = await createDb({ url: config.databaseUrl, dataDir: config.dataDir });
 await migrate(db);
 
 if (config.mode === "demo") {
+  // Hosted demo: every start (e.g. waking from sleep) begins at step 1 again.
+  if (process.env.HOPE_RESET_ON_START === "true") await resetSchema(db);
   const [{ n } = { n: 0 }] = await db.query<{ n: number }>(`SELECT count(*)::int AS n FROM staff`);
   if (n === 0) {
     const r = await seedDemo(db);

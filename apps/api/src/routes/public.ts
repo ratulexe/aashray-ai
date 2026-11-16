@@ -15,8 +15,20 @@ import { randomToken, sha256 } from "@hope/db";
 const SESSION_SECONDS = 30 * 86_400;
 
 export async function publicRoutes(server: FastifyInstance, app: App) {
+  /**
+   * Session token from the cookie, or (demo mode only) a Bearer header: the
+   * console shows the citizen app in a cross-site iframe, where browsers block
+   * SameSite=Strict cookies.
+   */
+  const sessionToken = (request: FastifyRequest) => {
+    const cookieToken = request.cookies[CITIZEN_COOKIE];
+    if (cookieToken || app.config.mode !== "demo") return cookieToken;
+    const auth = request.headers.authorization;
+    return auth?.startsWith("Bearer ") ? auth.slice(7) : undefined;
+  };
+
   const requireCitizen = async (request: FastifyRequest) => {
-    const id = await citizenFromToken(app, request.cookies[CITIZEN_COOKIE]);
+    const id = await citizenFromToken(app, sessionToken(request));
     if (!id) throw new HopeError("UNAUTHENTICATED", "Please sign in", 401);
     return id;
   };
@@ -36,7 +48,7 @@ export async function publicRoutes(server: FastifyInstance, app: App) {
   });
 
   server.post("/auth/logout", async (request, reply) => {
-    await endCitizenSession(app, request.cookies[CITIZEN_COOKIE]);
+    await endCitizenSession(app, sessionToken(request));
     reply.clearCookie(CITIZEN_COOKIE, { path: "/v1/public" });
     return { ok: true };
   });
@@ -50,7 +62,8 @@ export async function publicRoutes(server: FastifyInstance, app: App) {
     const token = randomToken();
     await app.db.query(`INSERT INTO citizen_sessions (token_hash, citizen_id, expires_at) VALUES ($1, $2, now() + interval '1 day')`, [sha256(token), c.id]);
     setSessionCookie(app, reply, CITIZEN_COOKIE, token, "/v1/public", 86_400);
-    return { ok: true };
+    // Also returned so the app can send it as a header inside the console's iframe.
+    return { ok: true, token };
   });
 
   server.get("/config", async () => ({ mode: app.config.mode, now: app.clock.now() }));
