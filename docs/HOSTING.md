@@ -4,7 +4,7 @@ The hosted demo is the same build as `npm run demo`, split over three free servi
 
 ```
  Citizen app (Vercel)  ── /v1/public ──┐
- hope-citizen.vercel.app               │
+ gethope.vercel.app                    │
                                        ├──> HOPE API (Render, free) ──> PostgreSQL + PostGIS (Neon, free)
  Staff console (Vercel) ── /v1/staff ──┘     hope-demo-api.onrender.com
  hope-console.vercel.app
@@ -33,10 +33,10 @@ HOPE creates its tables and the PostGIS extension itself on first start.
 ### 2. API — Render
 
 1. Sign up at [render.com](https://render.com) with GitHub.
-2. **New → Blueprint**, pick the `aashray-ai` repository. Render reads [`render.yaml`](../render.yaml) and proposes the `hope-demo-api` service.
+2. **New → Blueprint**, pick the `hope` repository. Render reads [`render.yaml`](../render.yaml) and proposes the `hope-demo-api` service.
 3. Fill in the three values it asks for:
    - `DATABASE_URL`: the Neon connection string
-   - `CITIZEN_ORIGIN`: `https://hope-citizen.vercel.app`
+   - `CITIZEN_ORIGIN`: `https://gethope.vercel.app`
    - `CONSOLE_ORIGIN`: `https://hope-console.vercel.app`
 4. Deploy. When it's live, `https://hope-demo-api.onrender.com/health` shows `{"ok":true,"mode":"demo",…}`.
 
@@ -45,14 +45,14 @@ If Render gives the service a different address (the name was taken), put that a
 ### 3. Apps — Vercel (two projects)
 
 Citizen app:
-1. **Add New → Project**, import `aashray-ai`.
-2. Project name `hope-citizen`; **Root Directory** `apps/citizen`. Leave the other settings; they come from `apps/citizen/vercel.json`.
+1. **Add New → Project**, import `hope`.
+2. Project name `gethope`; **Root Directory** `apps/citizen`. Leave the other settings; they come from `apps/citizen/vercel.json`.
 3. Deploy.
 
 Staff console:
-1. **Add New → Project**, import `aashray-ai` again.
+1. **Add New → Project**, import `hope` again.
 2. Project name `hope-console`; **Root Directory** `apps/console`.
-3. Environment variable `VITE_CITIZEN_URL` = `https://hope-citizen.vercel.app` (Salma's phone in the demo shows the citizen app from this address).
+3. Environment variable `VITE_CITIZEN_URL` = `https://gethope.vercel.app` (Salma's phone in the demo shows the citizen app from this address).
 4. Deploy.
 
 If Vercel gives either project a different address, update `CITIZEN_ORIGIN` / `CONSOLE_ORIGIN` on Render (and `VITE_CITIZEN_URL`) to match exactly, with no trailing slash.
@@ -60,7 +60,7 @@ If Vercel gives either project a different address, update `CITIZEN_ORIGIN` / `C
 ### 4. Tidy up
 
 - The old `aashray-ai` Vercel project still builds the repo the v1 way and fails. Delete it (Settings → Advanced → Delete Project), or disconnect its Git repository. Deleting it also takes down the old v1 link.
-- Adobe Fonts: add `hope-citizen.vercel.app` and `hope-console.vercel.app` to the web project's domains, or the HOPE logo falls back to a standard serif font there.
+- Adobe Fonts: add `gethope.vercel.app` and `hope-console.vercel.app` to the web project's domains, or the HOPE logo falls back to a standard serif font there.
 
 ## Before presenting
 
