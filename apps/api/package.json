@@ -1,0 +1,22 @@
+{
+  "name": "@hope/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --clear-screen=false src/main.ts",
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.1.5",
+    "@hope/allocation": "*",
+    "@hope/channels": "*",
+    "@hope/conversation": "*",
+    "@hope/db": "*",
+    "@hope/i18n": "*",
+    "@hope/shared": "*",
+    "fastify": "^5.12.8",
+    "zod": "^4.6.7"
+  }
+}
