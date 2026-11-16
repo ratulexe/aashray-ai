@@ -1,10 +1,11 @@
 /**
- * End-to-end flow against a real PostgreSQL + PostGIS (PGlite, in memory):
+ * End-to-end flow against a real PostgreSQL + PostGIS (PGlite in memory, or
+ * the server in TEST_DATABASE_URL):
  * seed → zones → draft → two-person approval → dispatch → SMS booking →
  * concurrency → check-in (wrong shelter, success) → expiry → rescue → all clear.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createDb, migrate, type Db } from "@hope/db";
+import { createDb, migrate, resetSchema, type Db } from "@hope/db";
 import { DEMO_PERSONAS, seedDemo } from "@hope/db/seed";
 import { createApp, loadConfig, type App } from "./context";
 import { book, checkIn, runHoldJobs } from "./services/bookings";
@@ -34,8 +35,11 @@ async function lastReply(phone: string) {
 }
 
 beforeAll(async () => {
-  db = await createDb({ dataDir: "memory" });
+  // TEST_DATABASE_URL runs the same flow on a PostgreSQL server (it is wiped first).
+  const url = process.env.TEST_DATABASE_URL;
+  db = await createDb(url ? { url } : { dataDir: "memory" });
   await migrate(db);
+  if (url) await resetSchema(db);
   const seeded = await seedDemo(db);
   incidentId = seeded.incidentId;
   app = createApp(db, loadConfig({ HOPE_MODE: "demo" }));

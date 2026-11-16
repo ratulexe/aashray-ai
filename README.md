@@ -75,6 +75,7 @@ Everyone deserves to be safe. HOPE closes the gap between an official warning an
 |---|---|
 | [VISION.md](docs/VISION.md) | Problem, users, goals, non-goals, West Bengal context |
 | [DEMO.md](docs/DEMO.md) | The concept demo: screen, 5-minute script, demo data |
+| [HOSTING.md](docs/HOSTING.md) | Free hosted demo: Vercel + Render + Neon, step by step |
 | [DESIGN.md](docs/DESIGN.md) | Design system: shadcn/ui, Motion, typography, logo, colour, screens |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, tech stack, repo layout, key flows |
 | [DATA_MODEL.md](docs/DATA_MODEL.md) | PostgreSQL + PostGIS schema and core transactions |

@@ -5,7 +5,7 @@ The first thing we build is a **showable concept**: HOPE running end to end on *
 ## Goals
 
 - Tell the whole story in **5 minutes**: warning → alert → reply → booked shelter → check-in → rescue → all clear.
-- **Runs on a laptop with no internet** (local Docker), so a weak connection never ruins a presentation. A hosted link is a bonus.
+- **Runs on a laptop with no internet** (`npm run demo`, database built in), so a weak connection never ruins a presentation. A hosted link ([HOSTING.md](HOSTING.md)) is a bonus.
 - **Repeatable:** same data and same result every time; one click resets everything.
 - **Honest:** a permanent `DEMO — fictional data` banner. No real people, no real phone numbers, no real warnings.
 - **Built on the real architecture** (Postgres + PostGIS, API, conversation engine, allocation) — a thin slice of the product, not a throwaway mock-up.
@@ -102,7 +102,7 @@ npm run demo     # API (with in-process Postgres + PostGIS, seeded on first run)
 
 Then open the console at http://localhost:5174, sign in with a demo account and choose **Demo presenter**.
 
-Hosted version: the same build on a free-tier server, reset automatically every night.
+Hosted version: the same build on free tiers (Vercel + Render + Neon), reset every time the API wakes up. Setup: [HOSTING.md](HOSTING.md).
 
 ## Done when
 

@@ -6,13 +6,42 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Demo persona sessions also travel as a header. The console shows this app
+ * inside an iframe on another site, where browsers block our SameSite=Strict
+ * cookie; tab-scoped storage still works there. Real logins use the cookie only.
+ */
+const DEMO_TOKEN_KEY = "hope_demo_token";
+
+function demoToken(): string | null {
+  try {
+    return sessionStorage.getItem(DEMO_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setDemoToken(token: string | null) {
+  try {
+    if (token) sessionStorage.setItem(DEMO_TOKEN_KEY, token);
+    else sessionStorage.removeItem(DEMO_TOKEN_KEY);
+  } catch {
+    // Storage unavailable: the cookie still works outside iframes.
+  }
+}
+
 export async function api<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
+  const headers: Record<string, string> = {};
+  if (init.body !== undefined) headers["content-type"] = "application/json";
+  const token = demoToken();
+  if (token) headers.authorization = `Bearer ${token}`;
   const res = await fetch(`/v1/public${path}`, {
     method: init.method ?? (init.body !== undefined ? "POST" : "GET"),
     credentials: "same-origin",
-    headers: init.body !== undefined ? { "content-type": "application/json" } : undefined,
+    headers,
     body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
   });
+  if (path === "/auth/logout") setDemoToken(null);
   const data = await res.json().catch(() => null);
   if (!res.ok) throw new ApiError(res.status, data?.error?.code ?? "ERROR", data?.error?.message ?? "Something went wrong");
   return data as T;
