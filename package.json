@@ -1,37 +1,31 @@
 {
-  "name": "aashray-ai",
+  "name": "hope",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "description": "HOPE — Hazard Outreach, Protection & Evacuation",
   "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22"
   },
-  "dependencies": {
-    "@react-three/drei": "^10.7.8",
-    "@react-three/fiber": "^9.7.0",
-    "@tailwindcss/vite": "^4.3.3",
-    "firebase": "^12.17.1",
-    "framer-motion": "^13.1.0",
-    "lucide-react": "^1.31.0",
-    "openai": "^7.5.0",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "react-router-dom": "^7.18.2",
-    "tailwindcss": "^4.3.3",
-    "zod": "^4.4.3"
+  "scripts": {
+    "demo": "concurrently -k -n api,citizen,console -c blue,green,magenta \"npm run dev -w @hope/api\" \"npm run dev -w @hope/citizen\" \"npm run dev -w @hope/console\"",
+    "dev:api": "npm run dev -w @hope/api",
+    "dev:citizen": "npm run dev -w @hope/citizen",
+    "dev:console": "npm run dev -w @hope/console",
+    "db:reset": "npm run db:reset -w @hope/db",
+    "build": "npm run build -w @hope/citizen -w @hope/console",
+    "test": "vitest run",
+    "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.4",
-    "eslint": "^10.8.0",
-    "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.3",
-    "globals": "^17.7.0",
-    "vite": "^8.2.0"
+    "@types/node": "^26.6.6",
+    "concurrently": "^10.0.7",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "vitest": "^5.1.0"
   }
 }

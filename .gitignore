@@ -27,3 +27,8 @@ dist-ssr
 .env.*.local
 .vercel
 .env*
+
+# HOPE
+.data/
+*.tsbuildinfo
+coverage

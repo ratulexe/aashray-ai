@@ -1,0 +1,8 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "hope-api", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev:api"], "port": 4000 },
+    { "name": "hope-citizen", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev:citizen"], "port": 5173 },
+    { "name": "hope-console", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev:console"], "port": 5174 }
+  ]
+}

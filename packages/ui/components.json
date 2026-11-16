@@ -1,0 +1,20 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "new-york",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/styles/globals.css",
+    "baseColor": "neutral",
+    "cssVariables": true
+  },
+  "iconLibrary": "lucide",
+  "aliases": {
+    "components": "@hope/ui/components",
+    "utils": "@hope/ui/lib/utils",
+    "hooks": "@hope/ui/hooks",
+    "lib": "@hope/ui/lib",
+    "ui": "@hope/ui/components"
+  }
+}
