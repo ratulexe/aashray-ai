@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { haversineKm } from "@hope/allocation";
-import { HopeError, householdSize, type LocalizedText } from "@hope/shared";
+import { HopeError, householdSize, isDemoPhone, type LocalizedText } from "@hope/shared";
 import { langSchema, phoneSchema } from "@hope/shared/schemas";
 import type { App } from "../context";
 import { CITIZEN_COOKIE, parse, setSessionCookie } from "../server";
@@ -36,6 +36,10 @@ export async function publicRoutes(server: FastifyInstance, app: App) {
   // ── Sign in with phone + one-time code ──
   server.post("/auth/otp", async (request) => {
     const { phone } = parse(z.object({ phone: phoneSchema }), request.body);
+    // Demo: say plainly that real numbers can't sign in (nothing is stored or sent).
+    if (app.config.mode === "demo" && !isDemoPhone(phone)) {
+      throw new HopeError("DEMO_ONLY", "This is a demo: only the fictional demo numbers can sign in.", 400);
+    }
     const result = await requestOtp(app, phone);
     return { sent: true, demoCode: result.demoCode };
   });

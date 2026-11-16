@@ -7,9 +7,16 @@ import { Input } from "@hope/ui/components/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@hope/ui/components/input-otp";
 import { Label } from "@hope/ui/components/label";
 import { StepTransition } from "@hope/ui/components/motion";
-import { api, ApiError } from "../api";
+import { api, ApiError, setDemoToken } from "../api";
 import { Shell } from "../components/shell";
+import { useConfig } from "../hooks";
 import { useI18n } from "../i18n";
+
+const PERSONAS = [
+  { key: "rina", label: "personaRina" },
+  { key: "arjun", label: "personaArjun" },
+  { key: "salma", label: "personaSalma" },
+] as const;
 
 export function LoginScreen() {
   const { t } = useI18n();
@@ -21,6 +28,23 @@ export function LoginScreen() {
   const [demoCode, setDemoCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isDemo = useConfig().data?.mode === "demo";
+
+  /** Demo only: sign in as a fictional person, no phone number needed. */
+  const tryAs = async (persona: (typeof PERSONAS)[number]["key"]) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await api<{ token?: string }>("/demo/login", { body: { persona } });
+      setDemoToken(res.token ?? null);
+      await qc.invalidateQueries({ queryKey: ["me"] });
+      navigate("/", { replace: true });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("error"));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const sendCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +55,8 @@ export function LoginScreen() {
       setDemoCode(res.demoCode ?? null);
       setStep("code");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t("error"));
+      if (err instanceof ApiError && err.code === "DEMO_ONLY") setError(t("demoOnly"));
+      else setError(err instanceof ApiError ? err.message : t("error"));
     } finally {
       setBusy(false);
     }
@@ -79,6 +104,24 @@ export function LoginScreen() {
             <Button type="submit" size="lg" className="h-14 w-full rounded-xl text-base" disabled={phone.length !== 10 || busy}>
               {busy ? <Loader2 className="size-5 animate-spin" /> : t("sendCode")}
             </Button>
+            {isDemo ? (
+              <div className="space-y-3 border-t pt-6">
+                <p className="text-sm font-medium text-muted-foreground">{t("demoTry")}</p>
+                {PERSONAS.map((p) => (
+                  <Button
+                    key={p.key}
+                    type="button"
+                    variant="outline"
+                    size="lg"
+                    className="h-14 w-full justify-start rounded-xl text-base"
+                    disabled={busy}
+                    onClick={() => tryAs(p.key)}
+                  >
+                    {t(p.label)}
+                  </Button>
+                ))}
+              </div>
+            ) : null}
           </form>
         ) : (
           <div className="space-y-6 pt-4">
